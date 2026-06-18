@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Level {
+  BASICO
+  INTERMEDIO
+  AVANZADO
+}
+
+model Lesson {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String
+  level       Level
+  duration    Int
+  modules     Int
+  order       Int        @unique
+  locked      Boolean    @default(false)
+  content     Json
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  progress    Progress[]
+}
+
+model Sign {
+  id          String   @id @default(cuid())
+  letter      String
+  name        String
+  description String
+  category    String
+  level       Level    @default(BASICO)
+  color       String
+  handConfig  Json?
+  tip         String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Progress {
+  id        String   @id @default(cuid())
+  userId    String
+  lessonId  Int
+  progress  Int      @default(0)
+  completed Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  @@unique([userId, lessonId])
+}

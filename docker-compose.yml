@@ -1,0 +1,51 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: senias_utscmx
+      POSTGRES_USER: senias
+      POSTGRES_PASSWORD: senias_dev_2026
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on: [postgres]
+    environment:
+      DATABASE_URL: postgresql://senias:senias_dev_2026@postgres:5432/senias_utscmx
+      PORT: 3000
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  ml-service:
+    build: ./ml-service
+    restart: unless-stopped
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./ml-service:/app
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on: [backend, ml-service]
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:3000
+      - VITE_ML_URL=http://localhost:8000
+
+volumes:
+  pgdata:

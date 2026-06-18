@@ -1,0 +1,258 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design Tokens ───────────────────────────────────────── */
+:root {
+  --bg:    #080D1A;
+  --bg2:   #0D1526;
+  --bg3:   #111E30;
+  --card:  rgba(255, 255, 255, 0.045);
+  --cardh: rgba(255, 255, 255, 0.082);
+  --bdr:   rgba(255, 255, 255, 0.082);
+  --bdr2:  rgba(255, 255, 255, 0.15);
+
+  --teal:    #0ED2B8;
+  --teal-dk: #07A898;
+  --teal-d:  rgba(14, 210, 184, 0.14);
+  --teal-b:  rgba(14, 210, 184, 0.28);
+
+  --vio:   #9D7BF8;
+  --vio-d: rgba(157, 123, 248, 0.14);
+  --vio-b: rgba(157, 123, 248, 0.28);
+
+  --amb:   #F5A623;
+  --amb-d: rgba(245, 166, 35, 0.14);
+
+  --grn:   #22C97E;
+  --grn-d: rgba(34, 201, 126, 0.14);
+
+  --red:   #F05050;
+  --red-d: rgba(240, 80, 80, 0.14);
+
+  --t1: #EFF4FD;
+  --t2: #9AABCA;
+  --t3: #4E637E;
+}
+
+/* ─── Reset & Base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: var(--bg);
+  color: var(--t1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--bdr2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--t3); }
+
+/* ─── Animations ────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+.anim-fade-up { animation: fadeUp 0.35s ease both; }
+.anim-fade-in { animation: fadeIn 0.25s ease both; }
+
+/* ─── Gradient text ─────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(130deg, var(--teal), var(--vio));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.gradient-text-2 {
+  background: linear-gradient(130deg, var(--vio), var(--amb));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Utility classes ───────────────────────────────────────── */
+.glass {
+  background: var(--card);
+  border: 1px solid var(--bdr);
+  border-radius: 14px;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+.glass:hover {
+  background: var(--cardh);
+  border-color: var(--bdr2);
+}
+.glass-active {
+  background: var(--teal-d);
+  border-color: var(--teal-b);
+}
+
+/* ─── Buttons ───────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--teal), var(--teal-dk));
+  color: #040E14;
+  font-weight: 700;
+  font-size: 13.5px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: filter 0.2s, transform 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+}
+.btn-primary:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(14, 210, 184, 0.32);
+}
+.btn-primary:active { transform: translateY(0); filter: brightness(0.98); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; filter: none; }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border: 1px solid var(--bdr2);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--t1);
+  font-weight: 600;
+  font-size: 13.5px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+.btn-ghost:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+  background: var(--teal-d);
+}
+
+.btn-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--t3);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-sm:hover { background: var(--cardh); color: var(--t2); }
+
+/* ─── Input ─────────────────────────────────────────────────── */
+.input-field {
+  width: 100%;
+  padding: 11px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid var(--bdr);
+  border-radius: 10px;
+  color: var(--t1);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+.input-field:focus {
+  border-color: var(--teal);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 0 0 3px var(--teal-d);
+}
+.input-field::placeholder { color: var(--t3); }
+
+/* ─── Nav item ──────────────────────────────────────────────── */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--t3);
+  font-size: 13.5px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  width: 100%;
+}
+.nav-item:hover  { background: var(--cardh); color: var(--t2); }
+.nav-item.active { background: var(--teal-d); color: var(--teal); border-color: var(--teal-b); }
+.nav-item:disabled { opacity: 0.42; cursor: not-allowed; }
+
+/* ─── Tag / Badge ───────────────────────────────────────────── */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+/* ─── Progress bar ──────────────────────────────────────────── */
+.pbar-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bdr);
+  overflow: hidden;
+}
+.pbar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--teal), var(--vio));
+  transition: width 0.55s ease;
+}
+
+/* ─── Sign card ─────────────────────────────────────────────── */
+.sign-card {
+  background: var(--card);
+  border: 1px solid var(--bdr);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+}
+.sign-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+}
+.sign-card.selected {
+  border-width: 1.5px;
+}

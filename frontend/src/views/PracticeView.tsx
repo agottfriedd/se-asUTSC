@@ -1,10 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import type { RecognitionResult } from '../types';
 
-/* ================================================================
-   CLASIFICADOR LSM v2 — Algebra vectorial en el navegador
-   Mismo algoritmo que el servicio Python (classifier.py)
-   ================================================================ */
 type Pt = { x: number; y: number; z: number };
 
 const norm = (v: [number,number,number]): [number,number,number] => {
@@ -15,11 +11,8 @@ const dot  = (a:[number,number,number], b:[number,number,number]) =>
   a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const sub  = (a:Pt, b:Pt): [number,number,number] => [a.x-b.x, a.y-b.y, a.z-b.z];
 const dist = (a:Pt, b:Pt) => Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2+(a.z-b.z)**2);
-const dot3 = (v:[number,number,number], a:Pt, b:Pt) => dot(v, sub(b,a));
 
 function extractFeatures(lm: Pt[]) {
-  const palmUp  = norm(sub(lm[0], lm[9]).map(v=>-v) as [number,number,number]);
-  // palm up = wrist(0) → middle_mcp(9)
   const pu = norm([lm[9].x-lm[0].x, lm[9].y-lm[0].y, lm[9].z-lm[0].z]);
   const pl = norm([lm[5].x-lm[17].x, lm[5].y-lm[17].y, lm[5].z-lm[17].z]);
   const palmSize = dist(lm[0], lm[9]) || 1;
@@ -40,25 +33,20 @@ function extractFeatures(lm: Pt[]) {
   }
 
   const pc = { x:(lm[5].x+lm[9].x+lm[13].x+lm[17].x)/4, y:(lm[5].y+lm[9].y+lm[13].y+lm[17].y)/4, z:(lm[5].z+lm[9].z+lm[13].z+lm[17].z)/4 };
-  const thumbSide    = ([lm[4].x-lm[0].x,lm[4].y-lm[0].y,lm[4].z-lm[0].z] as [number,number,number]).reduce((s,v,i)=>s+v*pl[i],0)/palmSize;
-  const thumbUp2     = ([lm[4].x-lm[0].x,lm[4].y-lm[0].y,lm[4].z-lm[0].z] as [number,number,number]).reduce((s,v,i)=>s+v*pu[i],0)/palmSize;
-  const thumbFwd     = ([lm[4].x-pc.x,lm[4].y-pc.y,lm[4].z-pc.z] as [number,number,number]).reduce((s,v,i)=>s+v*pu[i],0)/palmSize;
-
+  const thumbSide = ([lm[4].x-lm[0].x,lm[4].y-lm[0].y,lm[4].z-lm[0].z] as [number,number,number]).reduce((s,v,i)=>s+v*pl[i],0)/palmSize;
+  const thumbUp2  = ([lm[4].x-lm[0].x,lm[4].y-lm[0].y,lm[4].z-lm[0].z] as [number,number,number]).reduce((s,v,i)=>s+v*pu[i],0)/palmSize;
+  const thumbFwd  = ([lm[4].x-pc.x,lm[4].y-pc.y,lm[4].z-pc.z] as [number,number,number]).reduce((s,v,i)=>s+v*pu[i],0)/palmSize;
   const v_i1 = norm([lm[6].x-lm[5].x, lm[6].y-lm[5].y, lm[6].z-lm[5].z]);
   const v_i2 = norm([lm[7].x-lm[6].x, lm[7].y-lm[6].y, lm[7].z-lm[6].z]);
   const indexPipCos = Math.max(-1, Math.min(1, dot(v_i1, v_i2)));
 
   return {
-    ext,
-    thumbSide,
-    thumbUp:       thumbUp2,
-    thumbForward:  thumbFwd,
-    dThumbIndex:   dist(lm[4], lm[8])  / palmSize,
-    dThumbMiddle:  dist(lm[4], lm[12]) / palmSize,
-    dIndexMiddle:  dist(lm[8], lm[12]) / palmSize,
-    spanTips:      dist(lm[8], lm[20]) / palmSize,
-    indexPipCos,
-    palmSize,
+    ext, thumbSide, thumbUp: thumbUp2, thumbForward: thumbFwd,
+    dThumbIndex:  dist(lm[4], lm[8])  / palmSize,
+    dThumbMiddle: dist(lm[4], lm[12]) / palmSize,
+    dIndexMiddle: dist(lm[8], lm[12]) / palmSize,
+    spanTips:     dist(lm[8], lm[20]) / palmSize,
+    indexPipCos, palmSize,
   };
 }
 
@@ -66,13 +54,11 @@ function classifyLSM(lm: Pt[]): RecognitionResult {
   if (lm.length < 21) return { letter:'?', confidence:0 };
   const f = extractFeatures(lm);
   const e = f.ext;
-
   const EXT=0.55, FOLD=0.30;
   const g = {
     idx: e.index>EXT, mid: e.middle>EXT, rng: e.ring>EXT, pky: e.pinky>EXT,
     idx_f: e.index<FOLD, mid_f: e.middle<FOLD, rng_f: e.ring<FOLD, pky_f: e.pinky<FOLD,
-    idx_b: e.index>FOLD&&e.index<EXT, mid_b: e.middle>FOLD&&e.middle<EXT,
-    rng_b: e.ring>FOLD&&e.ring<EXT,
+    idx_b: e.index>FOLD&&e.index<EXT, mid_b: e.middle>FOLD&&e.middle<EXT, rng_b: e.ring>FOLD&&e.ring<EXT,
     thumbAbducted: f.thumbSide   >  0.35,
     thumbUp:       f.thumbUp     >  0.45,
     thumbOver:     f.thumbForward < -0.15,
@@ -84,77 +70,57 @@ function classifyLSM(lm: Pt[]): RecognitionResult {
   };
 
   let letter='?', base=0.25;
-
-  // Puño (ningun dedo extendido)
   if (g.idx_f && g.mid_f && g.rng_f && g.pky_f) {
-    if (g.thumbOver)                          { letter='S'; base=0.90; }
-    else if (f.dThumbIndex < 0.20)            { letter='T'; base=0.85; }
-    else if (g.thumbAbducted && g.thumbUp)    { letter='A'; base=0.87; }
-    else                                      { letter='A'; base=0.80; }
-  }
-  // Solo índice
-  else if (g.idx && g.mid_f && g.rng_f && g.pky_f) {
-    if (g.thumbAbducted && g.thumbUp)         { letter='L'; base=0.93; }
-    else if (g.thumbAbducted)                 { letter='G'; base=0.86; }
-    else if (g.indexHooked)                   { letter='X'; base=0.82; }
-    else                                      { letter='D'; base=0.88; }
-  }
-  // Solo meñique
-  else if (g.idx_f && g.mid_f && g.rng_f && g.pky) {
-    if (g.thumbAbducted && g.thumbUp)         { letter='Y'; base=0.93; }
-    else                                      { letter='I'; base=0.91; }
-  }
-  // Índice + meñique
-  else if (g.idx && g.mid_f && g.rng_f && g.pky) { letter='P'; base=0.86; }
-  // Índice + medio
+    if (g.thumbOver)                       { letter='S'; base=0.90; }
+    else if (f.dThumbIndex < 0.20)         { letter='T'; base=0.85; }
+    else if (g.thumbAbducted && g.thumbUp) { letter='A'; base=0.87; }
+    else                                   { letter='A'; base=0.80; }
+  } else if (g.idx && g.mid_f && g.rng_f && g.pky_f) {
+    if (g.thumbAbducted && g.thumbUp)      { letter='L'; base=0.93; }
+    else if (g.thumbAbducted)              { letter='G'; base=0.86; }
+    else if (g.indexHooked)               { letter='X'; base=0.82; }
+    else                                   { letter='D'; base=0.88; }
+  } else if (g.idx_f && g.mid_f && g.rng_f && g.pky) {
+    if (g.thumbAbducted && g.thumbUp)      { letter='Y'; base=0.93; }
+    else                                   { letter='I'; base=0.91; }
+  } else if (g.idx && g.mid_f && g.rng_f && g.pky) { letter='P'; base=0.86; }
   else if (g.idx && g.mid && g.rng_f && g.pky_f) {
-    if (g.thumbAbducted)                      { letter='K'; base=0.87; }
-    else if (g.idxMidClose)                   { letter='U'; base=0.89; }
-    else if (g.idxMidSpread)                  { letter='V'; base=0.89; }
-    else                                      { letter='H'; base=0.81; }
-  }
-  // Índice + medio + anular
-  else if (g.idx && g.mid && g.rng && g.pky_f) { letter='W'; base=0.88; }
-  // Todos extendidos
-  else if (g.idx && g.mid && g.rng && g.pky)   { letter='B'; base=0.91; }
+    if (g.thumbAbducted)                   { letter='K'; base=0.87; }
+    else if (g.idxMidClose)               { letter='U'; base=0.89; }
+    else if (g.idxMidSpread)              { letter='V'; base=0.89; }
+    else                                   { letter='H'; base=0.81; }
+  } else if (g.idx && g.mid && g.rng && g.pky_f) { letter='W'; base=0.88; }
+  else if (g.idx && g.mid && g.rng && g.pky)     { letter='B'; base=0.91; }
   else {
-    const allBent = e.index>FOLD&&e.index<EXT && e.middle>FOLD&&e.middle<EXT &&
-                    e.ring>FOLD&&e.ring<EXT;
-    const allLow  = Object.values(e).every((v,i) => i>0 ? true : true) &&
-                    e.index<0.62 && e.middle<0.62 && e.ring<0.62 && e.pinky<0.62;
-
-    if (allBent && f.dThumbIndex < 0.28)      { letter='O'; base=0.85; }
-    else if (allBent)                          { letter='C'; base=0.81; }
+    const allBent = e.index>FOLD&&e.index<EXT && e.middle>FOLD&&e.middle<EXT && e.ring>FOLD&&e.ring<EXT;
+    const allLow  = e.index<0.62 && e.middle<0.62 && e.ring<0.62 && e.pinky<0.62;
+    if (allBent && f.dThumbIndex < 0.28)       { letter='O'; base=0.85; }
+    else if (allBent)                           { letter='C'; base=0.81; }
     else if (allLow && g.thumbTouchIdx)        { letter='F'; base=0.79; }
     else if (allLow && e.index<0.45 && e.middle<0.45) {
-      if (g.thumbOver)                         { letter='S'; base=0.75; }
-      else                                     { letter='E'; base=0.77; }
-    }
-    else if (g.indexHooked && g.mid_f && g.rng_f && g.pky_f) { letter='X'; base=0.83; }
+      if (g.thumbOver) { letter='S'; base=0.75; } else { letter='E'; base=0.77; }
+    } else if (g.indexHooked && g.mid_f && g.rng_f && g.pky_f) { letter='X'; base=0.83; }
     else {
       const n = [g.idx,g.mid,g.rng,g.pky].filter(Boolean).length;
-      const fb = ['?','D','U','W','B'][n] || '?';
-      const fc = [0.25,0.52,0.48,0.48,0.55][n] || 0.25;
-      letter=fb; base=fc;
+      letter = ['?','D','U','W','B'][n] || '?';
+      base   = [0.25,0.52,0.48,0.48,0.55][n] || 0.25;
     }
   }
-
   const sizeOk = Math.min(1.0, f.palmSize / 0.12);
   return { letter, confidence: Math.round(base * sizeOk * 100) / 100 };
 }
 
-/* ================================================================
-   COMPONENTE REACT
-   ================================================================ */
+interface HandsInstance {
+  setOptions: (o: object) => void;
+  onResults: (cb: (r: { multiHandLandmarks?: Pt[][] }) => void) => void;
+  send: (i: { image: HTMLVideoElement }) => Promise<void>;
+}
+
 declare global {
   interface Window {
-    Hands: new(cfg:{locateFile:(f:string)=>string})=>{
-      setOptions:(o:object)=>void;
-      onResults:(cb:(r:{multiHandLandmarks?:Pt[][]})=>void)=>void;
-      send:(i:{image:HTMLVideoElement})=>Promise<void>;
-    };
-    drawConnectors:(ctx:CanvasRenderingContext2D,lm:Pt[],c:unknown[],s:object)=>void;
-    drawLandmarks: (ctx:CanvasRenderingContext2D,lm:Pt[],s:object)=>void;
+    Hands: new(cfg: { locateFile: (f: string) => string }) => HandsInstance;
+    drawConnectors: (ctx: CanvasRenderingContext2D, lm: Pt[], c: unknown[], s: object) => void;
+    drawLandmarks:  (ctx: CanvasRenderingContext2D, lm: Pt[], s: object) => void;
     HAND_CONNECTIONS: unknown[];
   }
 }
@@ -174,13 +140,13 @@ export function PracticeView() {
   const videoRef  = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef<number>(0);
-  const handsRef  = useRef<ReturnType<typeof window.Hands>|null>(null);
+  const handsRef  = useRef<HandsInstance|null>(null);
 
-  const [result,  setResult]  = useState<RecognitionResult|null>(null);
-  const [running, setRunning] = useState(false);
-  const [loaded,  setLoaded]  = useState(false);
-  const [error,   setError]   = useState('');
-  const [history, setHistory] = useState<string[]>([]);
+  const [result,     setResult]     = useState<RecognitionResult|null>(null);
+  const [running,    setRunning]    = useState(false);
+  const [loaded,     setLoaded]     = useState(false);
+  const [error,      setError]      = useState('');
+  const [history,    setHistory]    = useState<string[]>([]);
   const [lastLetter, setLastLetter] = useState('');
   const [sameCount,  setSameCount]  = useState(0);
 
@@ -205,7 +171,19 @@ export function PracticeView() {
       });
       if (!videoRef.current) return;
       videoRef.current.srcObject = stream;
-      await videoRef.current.play();
+      videoRef.current.play();
+
+      // ── CORRECCIÓN: esperar a que el video tenga dimensiones reales ──
+      await new Promise<void>(resolve => {
+        const v = videoRef.current!;
+        if (v.readyState >= 2 && v.videoWidth > 0) { resolve(); return; }
+        const check = () => {
+          if (v.videoWidth > 0) { resolve(); }
+          else { requestAnimationFrame(check); }
+        };
+        v.onloadeddata = check;
+        requestAnimationFrame(check);
+      });
 
       handsRef.current = new window.Hands({
         locateFile: (f:string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
@@ -216,7 +194,7 @@ export function PracticeView() {
       });
       handsRef.current.onResults(results => {
         const canvas=canvasRef.current; const video=videoRef.current;
-        if (!canvas||!video) return;
+        if (!canvas||!video||video.videoWidth===0) return;
         const ctx=canvas.getContext('2d')!;
         canvas.width=video.videoWidth; canvas.height=video.videoHeight;
         ctx.save(); ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -228,7 +206,6 @@ export function PracticeView() {
           window.drawLandmarks(ctx,lm,{color:'#9D7BF8',radius:3,fillColor:'#9D7BF8'});
           const prediction=classifyLSM(lm);
           setResult(prediction);
-          // Solo agregar al historial si la misma letra aparece 3 veces seguidas
           if (prediction.confidence>0.72 && prediction.letter!=='?') {
             setLastLetter(prev => {
               if (prev===prediction.letter) {
@@ -253,7 +230,7 @@ export function PracticeView() {
 
       setRunning(true);
       const loop=async()=>{
-        if (videoRef.current && handsRef.current) {
+        if (videoRef.current && handsRef.current && videoRef.current.videoWidth>0) {
           await handsRef.current.send({image:videoRef.current});
         }
         rafRef.current=requestAnimationFrame(loop);
@@ -289,7 +266,6 @@ export function PracticeView() {
           </div>
         </div>
 
-        {/* Área de cámara */}
         <div style={{position:'relative',borderRadius:16,overflow:'hidden',background:'var(--bg3)',border:'1px solid var(--bdr)',aspectRatio:'4/3',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'center'}}>
           <video ref={videoRef} style={{display:'none'}} playsInline muted/>
           <canvas ref={canvasRef} style={{width:'100%',height:'100%',objectFit:'cover',display:running?'block':'none'}}/>
@@ -303,8 +279,6 @@ export function PracticeView() {
               {loaded && <button className="btn-primary" onClick={startCamera}>Activar cámara</button>}
             </div>
           )}
-
-          {/* Resultado overlay */}
           {running && result && result.letter!=='?' && (
             <div style={{position:'absolute',top:12,right:12,background:'rgba(8,13,26,.88)',backdropFilter:'blur(10px)',borderRadius:14,padding:'12px 18px',border:`1.5px solid ${confColor}40`,minWidth:80,textAlign:'center'}}>
               <div style={{fontSize:48,fontWeight:900,color:confColor,lineHeight:1}}>{result.letter}</div>
@@ -314,15 +288,11 @@ export function PracticeView() {
               )}
             </div>
           )}
-
-          {/* Sin mano detectada */}
           {running && (!result || result.letter==='?') && (
             <div style={{position:'absolute',top:12,left:12,background:'rgba(8,13,26,.7)',borderRadius:10,padding:'6px 12px',fontSize:12,color:'var(--t3)'}}>
               Sin mano detectada
             </div>
           )}
-
-          {/* Barra de confianza */}
           {running && result && (
             <div style={{position:'absolute',bottom:0,left:0,right:0,height:5,background:'rgba(0,0,0,.4)'}}>
               <div style={{height:'100%',width:`${confPct}%`,background:confColor,transition:'width .15s,background .15s'}}/>
@@ -346,7 +316,6 @@ export function PracticeView() {
           <button className="btn-ghost" onClick={()=>setHistory([])}>Limpiar</button>
         </div>
 
-        {/* Historial */}
         {history.length>0 && (
           <div className="glass" style={{padding:'16px',marginBottom:20}}>
             <div style={{fontWeight:700,fontSize:13.5,marginBottom:10}}>Señas detectadas (estabilizadas)</div>
@@ -363,7 +332,6 @@ export function PracticeView() {
           </div>
         )}
 
-        {/* Guía rápida */}
         <div className="glass" style={{padding:16,marginBottom:16}}>
           <div style={{fontWeight:700,fontSize:13.5,marginBottom:12}}>📋 Señas con mayor precisión</div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:8}}>

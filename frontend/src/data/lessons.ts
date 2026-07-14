@@ -5,64 +5,64 @@ export const LESSONS: Lesson[] = [
   {
     id: 1, title: 'Introducción a la LSM',
     desc: 'Historia, importancia y cultura de la comunidad sorda en México',
-    level: 'Básico', dur: 15, mods: 5, done: true,  prog: 100, locked: false,
+    level: 'Básico', dur: 15, mods: 5, locked: false,
   },
   {
     id: 2, title: 'Dactilología A–M',
     desc: 'Aprende las primeras 14 letras del abecedario manual LSM',
-    level: 'Básico', dur: 20, mods: 7, done: true,  prog: 100, locked: false,
+    level: 'Básico', dur: 20, mods: 7, locked: false,
   },
   {
     id: 3, title: 'Dactilología N–Z',
     desc: 'Completa el abecedario con letras finales y grafemas especiales (CH, RR)',
-    level: 'Básico', dur: 20, mods: 8, done: false, prog: 60,  locked: false,
+    level: 'Básico', dur: 20, mods: 8, locked: false,
   },
   {
     id: 4, title: 'Números 1–20',
     desc: 'Señas para los números del 1 al 20 en LSM',
-    level: 'Básico', dur: 15, mods: 5, done: false, prog: 0,   locked: false,
+    level: 'Básico', dur: 15, mods: 5, locked: false,
   },
   {
     id: 5, title: 'Saludos y despedidas',
     desc: 'Las expresiones básicas de cortesía en LSM',
-    level: 'Básico', dur: 12, mods: 4, done: false, prog: 0,   locked: false,
+    level: 'Básico', dur: 12, mods: 4, locked: false,
   },
   // ── Intermedio ───────────────────────────────────────────────
   {
     id: 6, title: 'Presentación personal',
     desc: 'Cómo decir tu nombre, edad y lugar de origen en LSM',
-    level: 'Intermedio', dur: 25, mods: 6, done: false, prog: 0, locked: true,
+    level: 'Intermedio', dur: 25, mods: 6, locked: true,
   },
   {
     id: 7, title: 'La familia',
     desc: 'Señas para los miembros de la familia y relaciones',
-    level: 'Intermedio', dur: 20, mods: 6, done: false, prog: 0, locked: true,
+    level: 'Intermedio', dur: 20, mods: 6, locked: true,
   },
   {
     id: 8, title: 'Emociones y sentimientos',
     desc: 'Expresa emociones con expresión facial y señas LSM',
-    level: 'Intermedio', dur: 25, mods: 7, done: false, prog: 0, locked: true,
+    level: 'Intermedio', dur: 25, mods: 7, locked: true,
   },
   {
     id: 9, title: 'Colores y formas',
     desc: 'Vocabulario visual: colores, formas y tamaños en LSM',
-    level: 'Intermedio', dur: 20, mods: 5, done: false, prog: 0, locked: true,
+    level: 'Intermedio', dur: 20, mods: 5, locked: true,
   },
   // ── Avanzado ────────────────────────────────────────────────
   {
     id: 10, title: 'Frases del día a día',
     desc: 'Construye oraciones completas con gramática LSM correcta',
-    level: 'Avanzado', dur: 30, mods: 8, done: false, prog: 0, locked: true,
+    level: 'Avanzado', dur: 30, mods: 8, locked: true,
   },
   {
     id: 11, title: 'Conversación básica',
     desc: 'Practica diálogos completos con retroalimentación',
-    level: 'Avanzado', dur: 35, mods: 9, done: false, prog: 0, locked: true,
+    level: 'Avanzado', dur: 35, mods: 9, locked: true,
   },
   {
     id: 12, title: 'LSM en el campus',
     desc: 'Vocabulario académico para comunicarte en UTSC',
-    level: 'Avanzado', dur: 30, mods: 7, done: false, prog: 0, locked: true,
+    level: 'Avanzado', dur: 30, mods: 7, locked: true,
   },
 ];
 

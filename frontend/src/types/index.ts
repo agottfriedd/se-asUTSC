@@ -59,6 +59,13 @@ export interface Lesson {
   locked: boolean;
 }
 
+// ─── Badges ───────────────────────────────────────────────────
+export interface Badge {
+  emoji: string;
+  name:  string;
+  desc:  string;
+}
+
 // ─── Lesson content blocks ───────────────────────────────────
 export type ContentBlock =
   | { type: 'intro';     title: string;  body: string }

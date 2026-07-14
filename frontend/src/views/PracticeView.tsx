@@ -1,114 +1,14 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { api } from '../lib/api';
 import type { RecognitionResult } from '../types';
 
 type Pt = { x: number; y: number; z: number };
 
-const norm = (v: [number,number,number]): [number,number,number] => {
-  const n = Math.sqrt(v[0]**2+v[1]**2+v[2]**2) || 1e-8;
-  return [v[0]/n, v[1]/n, v[2]/n];
-};
-const dot  = (a:[number,number,number], b:[number,number,number]) =>
-  a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
-const sub  = (a:Pt, b:Pt): [number,number,number] => [a.x-b.x, a.y-b.y, a.z-b.z];
-const dist = (a:Pt, b:Pt) => Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2+(a.z-b.z)**2);
-
-function extractFeatures(lm: Pt[]) {
-  const pu = norm([lm[9].x-lm[0].x, lm[9].y-lm[0].y, lm[9].z-lm[0].z]);
-  const pl = norm([lm[5].x-lm[17].x, lm[5].y-lm[17].y, lm[5].z-lm[17].z]);
-  const palmSize = dist(lm[0], lm[9]) || 1;
-
-  const joints: Record<string,[number,number,number,number]> = {
-    thumb:[1,2,3,4], index:[5,6,7,8], middle:[9,10,11,12], ring:[13,14,15,16], pinky:[17,18,19,20]
-  };
-
-  const ext: Record<string,number> = {};
-  for (const [name,[mi,pi,,ti]] of Object.entries(joints)) {
-    const mcp=lm[mi], pip=lm[pi], tip=lm[ti];
-    const v1=norm([pip.x-mcp.x, pip.y-mcp.y, pip.z-mcp.z]);
-    const v2=norm([tip.x-pip.x, tip.y-pip.y, tip.z-pip.z]);
-    const cosPip = Math.max(-1, Math.min(1, dot(v1,v2)));
-    const elevation = ([tip.x-mcp.x, tip.y-mcp.y, tip.z-mcp.z] as [number,number,number])
-      .reduce((s,v,i) => s + v*pu[i], 0) / palmSize;
-    ext[name] = Math.max(0, Math.min(1, ((cosPip+1)/2) * Math.max(0, elevation)));
-  }
-
-  const pc = { x:(lm[5].x+lm[9].x+lm[13].x+lm[17].x)/4, y:(lm[5].y+lm[9].y+lm[13].y+lm[17].y)/4, z:(lm[5].z+lm[9].z+lm[13].z+lm[17].z)/4 };
-  const thumbSide = ([lm[4].x-lm[0].x,lm[4].y-lm[0].y,lm[4].z-lm[0].z] as [number,number,number]).reduce((s,v,i)=>s+v*pl[i],0)/palmSize;
-  const thumbUp2  = ([lm[4].x-lm[0].x,lm[4].y-lm[0].y,lm[4].z-lm[0].z] as [number,number,number]).reduce((s,v,i)=>s+v*pu[i],0)/palmSize;
-  const thumbFwd  = ([lm[4].x-pc.x,lm[4].y-pc.y,lm[4].z-pc.z] as [number,number,number]).reduce((s,v,i)=>s+v*pu[i],0)/palmSize;
-  const v_i1 = norm([lm[6].x-lm[5].x, lm[6].y-lm[5].y, lm[6].z-lm[5].z]);
-  const v_i2 = norm([lm[7].x-lm[6].x, lm[7].y-lm[6].y, lm[7].z-lm[6].z]);
-  const indexPipCos = Math.max(-1, Math.min(1, dot(v_i1, v_i2)));
-
-  return {
-    ext, thumbSide, thumbUp: thumbUp2, thumbForward: thumbFwd,
-    dThumbIndex:  dist(lm[4], lm[8])  / palmSize,
-    dThumbMiddle: dist(lm[4], lm[12]) / palmSize,
-    dIndexMiddle: dist(lm[8], lm[12]) / palmSize,
-    spanTips:     dist(lm[8], lm[20]) / palmSize,
-    indexPipCos, palmSize,
-  };
-}
-
-function classifyLSM(lm: Pt[]): RecognitionResult {
-  if (lm.length < 21) return { letter:'?', confidence:0 };
-  const f = extractFeatures(lm);
-  const e = f.ext;
-  const EXT=0.55, FOLD=0.30;
-  const g = {
-    idx: e.index>EXT, mid: e.middle>EXT, rng: e.ring>EXT, pky: e.pinky>EXT,
-    idx_f: e.index<FOLD, mid_f: e.middle<FOLD, rng_f: e.ring<FOLD, pky_f: e.pinky<FOLD,
-    idx_b: e.index>FOLD&&e.index<EXT, mid_b: e.middle>FOLD&&e.middle<EXT, rng_b: e.ring>FOLD&&e.ring<EXT,
-    thumbAbducted: f.thumbSide   >  0.35,
-    thumbUp:       f.thumbUp     >  0.45,
-    thumbOver:     f.thumbForward < -0.15,
-    thumbTouchIdx: f.dThumbIndex  <  0.35,
-    thumbTouchMid: f.dThumbMiddle <  0.35,
-    idxMidClose:   f.dIndexMiddle <  0.18,
-    idxMidSpread:  f.dIndexMiddle >  0.28,
-    indexHooked:   f.indexPipCos  <  0.30,
-  };
-
-  let letter='?', base=0.25;
-  if (g.idx_f && g.mid_f && g.rng_f && g.pky_f) {
-    if (g.thumbOver)                       { letter='S'; base=0.90; }
-    else if (f.dThumbIndex < 0.20)         { letter='T'; base=0.85; }
-    else if (g.thumbAbducted && g.thumbUp) { letter='A'; base=0.87; }
-    else                                   { letter='A'; base=0.80; }
-  } else if (g.idx && g.mid_f && g.rng_f && g.pky_f) {
-    if (g.thumbAbducted && g.thumbUp)      { letter='L'; base=0.93; }
-    else if (g.thumbAbducted)              { letter='G'; base=0.86; }
-    else if (g.indexHooked)               { letter='X'; base=0.82; }
-    else                                   { letter='D'; base=0.88; }
-  } else if (g.idx_f && g.mid_f && g.rng_f && g.pky) {
-    if (g.thumbAbducted && g.thumbUp)      { letter='Y'; base=0.93; }
-    else                                   { letter='I'; base=0.91; }
-  } else if (g.idx && g.mid_f && g.rng_f && g.pky) { letter='P'; base=0.86; }
-  else if (g.idx && g.mid && g.rng_f && g.pky_f) {
-    if (g.thumbAbducted)                   { letter='K'; base=0.87; }
-    else if (g.idxMidClose)               { letter='U'; base=0.89; }
-    else if (g.idxMidSpread)              { letter='V'; base=0.89; }
-    else                                   { letter='H'; base=0.81; }
-  } else if (g.idx && g.mid && g.rng && g.pky_f) { letter='W'; base=0.88; }
-  else if (g.idx && g.mid && g.rng && g.pky)     { letter='B'; base=0.91; }
-  else {
-    const allBent = e.index>FOLD&&e.index<EXT && e.middle>FOLD&&e.middle<EXT && e.ring>FOLD&&e.ring<EXT;
-    const allLow  = e.index<0.62 && e.middle<0.62 && e.ring<0.62 && e.pinky<0.62;
-    if (allBent && f.dThumbIndex < 0.28)       { letter='O'; base=0.85; }
-    else if (allBent)                           { letter='C'; base=0.81; }
-    else if (allLow && g.thumbTouchIdx)        { letter='F'; base=0.79; }
-    else if (allLow && e.index<0.45 && e.middle<0.45) {
-      if (g.thumbOver) { letter='S'; base=0.75; } else { letter='E'; base=0.77; }
-    } else if (g.indexHooked && g.mid_f && g.rng_f && g.pky_f) { letter='X'; base=0.83; }
-    else {
-      const n = [g.idx,g.mid,g.rng,g.pky].filter(Boolean).length;
-      letter = ['?','D','U','W','B'][n] || '?';
-      base   = [0.25,0.52,0.48,0.48,0.55][n] || 0.25;
-    }
-  }
-  const sizeOk = Math.min(1.0, f.palmSize / 0.12);
-  return { letter, confidence: Math.round(base * sizeOk * 100) / 100 };
-}
+// La clasificación vive en ml-service/app/classifier.py (única fuente de
+// verdad). Aquí solo extraemos landmarks con MediaPipe y los mandamos a
+// POST /classify. Mínimo intervalo entre requests para no saturar el servicio
+// (onResults dispara a ~30 fps).
+const CLASSIFY_MIN_INTERVAL_MS = 150;
 
 interface HandsInstance {
   setOptions: (o: object) => void;
@@ -125,15 +25,15 @@ declare global {
   }
 }
 
+// Solo letras que el clasificador (ml-service) puede emitir.
 const SIGN_DESCRIPTIONS: Record<string,string> = {
   A:'Puño, pulgar al costado', B:'Mano plana, dedos juntos',
   C:'Curva en C', D:'Solo índice arriba', E:'Todos doblados',
   F:'Índice+pulgar tocándose', G:'Índice lateral', H:'2 dedos horizontal',
   I:'Solo meñique', K:'V con pulgar', L:'Forma de L',
-  M:'3 dedos sobre pulgar', N:'2 dedos sobre pulgar', O:'Círculo cerrado',
-  P:'Índice+meñique abajo', R:'Índice+medio cruzados', S:'Puño+pulgar encima',
+  O:'Círculo cerrado', P:'Índice+meñique abajo', S:'Puño+pulgar encima',
   T:'Pulgar entre índice+medio', U:'Índice+medio juntos', V:'Paz ✌️',
-  W:'3 dedos separados', X:'Índice enganchado', Y:'Shaka 🤙', Z:'Índice traza Z',
+  W:'3 dedos separados', X:'Índice enganchado', Y:'Shaka 🤙',
 };
 
 export function PracticeView() {
@@ -147,8 +47,71 @@ export function PracticeView() {
   const [loaded,     setLoaded]     = useState(false);
   const [error,      setError]      = useState('');
   const [history,    setHistory]    = useState<string[]>([]);
-  const [lastLetter, setLastLetter] = useState('');
-  const [sameCount,  setSameCount]  = useState(0);
+  // Solo se usan los setters (lógica de estabilización por callbacks)
+  const [, setLastLetter] = useState('');
+  const [, setSameCount]  = useState(0);
+  const [mlDown, setMlDown] = useState(false);
+
+  // Clasificación remota: un request en vuelo a la vez + throttle
+  const busyRef     = useRef(false);
+  const lastReqRef  = useRef(0);
+  // Últimos landmarks vistos (para capturar fixtures)
+  const latestLmRef = useRef<Pt[]|null>(null);
+
+  const classifyRemote = useCallback((lm: Pt[]) => {
+    const now = Date.now();
+    if (busyRef.current || now - lastReqRef.current < CLASSIFY_MIN_INTERVAL_MS) return;
+    busyRef.current = true;
+    lastReqRef.current = now;
+    api.ml.classify(lm)
+      .then(prediction => {
+        setMlDown(false);
+        setResult(prediction);
+        if (prediction.confidence > 0.72 && prediction.letter !== '?') {
+          setLastLetter(prev => {
+            if (prev === prediction.letter) {
+              setSameCount(c => {
+                if (c >= 2) {
+                  setHistory(h => [prediction.letter, ...h].slice(0, 12));
+                  return 0;
+                }
+                return c + 1;
+              });
+            } else {
+              setSameCount(1);
+            }
+            return prediction.letter;
+          });
+        }
+      })
+      .catch(() => {
+        setMlDown(true);
+        setResult(null);   // no mostrar una letra vieja si el servicio cayó
+      })
+      .finally(() => { busyRef.current = false; });
+  }, []);
+
+  // Descarga los landmarks del frame actual como JSON (fixtures para
+  // comparar MediaPipe legacy-CDN vs Tasks; ver classifier.py).
+  const captureFixture = useCallback(() => {
+    const lm = latestLmRef.current;
+    if (!lm) return;
+    const letter = result && result.letter !== '?' ? result.letter : 'unknown';
+    const payload = {
+      capturedAt: new Date().toISOString(),
+      source:     'mediapipe-hands-legacy-cdn',
+      letter,
+      confidence: result?.confidence ?? null,
+      landmarks:  lm.map(p => ({ x: p.x, y: p.y, z: p.z })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `lsm-fixture-${letter}-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [result]);
 
   useEffect(() => {
     const load = (src:string) => new Promise<void>((res,rej) => {
@@ -204,25 +167,10 @@ export function PracticeView() {
           const lm=results.multiHandLandmarks[0];
           window.drawConnectors(ctx,lm,window.HAND_CONNECTIONS,{color:'#0ED2B8',lineWidth:2});
           window.drawLandmarks(ctx,lm,{color:'#9D7BF8',radius:3,fillColor:'#9D7BF8'});
-          const prediction=classifyLSM(lm);
-          setResult(prediction);
-          if (prediction.confidence>0.72 && prediction.letter!=='?') {
-            setLastLetter(prev => {
-              if (prev===prediction.letter) {
-                setSameCount(c => {
-                  if (c>=2) {
-                    setHistory(h=>[prediction.letter,...h].slice(0,12));
-                    return 0;
-                  }
-                  return c+1;
-                });
-              } else {
-                setSameCount(1);
-              }
-              return prediction.letter;
-            });
-          }
+          latestLmRef.current = lm;
+          classifyRemote(lm);      // async; el dibujo no espera al servicio
         } else {
+          latestLmRef.current = null;
           setResult(null);
         }
         ctx.restore();
@@ -239,7 +187,7 @@ export function PracticeView() {
     } catch {
       setError('No se pudo acceder a la cámara. Verifica los permisos del navegador.');
     }
-  }, [loaded]);
+  }, [loaded, classifyRemote]);
 
   const stopCamera = useCallback(() => {
     cancelAnimationFrame(rafRef.current);
@@ -247,7 +195,8 @@ export function PracticeView() {
       (videoRef.current.srcObject as MediaStream).getTracks().forEach(t=>t.stop());
       videoRef.current.srcObject=null;
     }
-    setRunning(false); setResult(null);
+    setRunning(false); setResult(null); setMlDown(false);
+    latestLmRef.current = null;
   }, []);
 
   useEffect(()=>()=>stopCamera(),[stopCamera]);
@@ -279,6 +228,17 @@ export function PracticeView() {
               {loaded && <button className="btn-primary" onClick={startCamera}>Activar cámara</button>}
             </div>
           )}
+          {running && mlDown && (
+            <div style={{position:'absolute',inset:0,zIndex:3,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,background:'rgba(8,13,26,.82)',backdropFilter:'blur(4px)',padding:24,textAlign:'center'}}>
+              <div style={{fontSize:40}}>🔌</div>
+              <div style={{fontWeight:800,fontSize:16,color:'var(--red)'}}>Sin conexión con el servicio de reconocimiento</div>
+              <div style={{fontSize:12.5,color:'var(--t2)',maxWidth:380,lineHeight:1.5}}>
+                La clasificación de señas ahora se hace en el servidor (ml-service).
+                Mientras no responda, la práctica no puede reconocer letras.
+                Verifica que el servicio esté corriendo y reintentaremos automáticamente.
+              </div>
+            </div>
+          )}
           {running && result && result.letter!=='?' && (
             <div style={{position:'absolute',top:12,right:12,background:'rgba(8,13,26,.88)',backdropFilter:'blur(10px)',borderRadius:14,padding:'12px 18px',border:`1.5px solid ${confColor}40`,minWidth:80,textAlign:'center'}}>
               <div style={{fontSize:48,fontWeight:900,color:confColor,lineHeight:1}}>{result.letter}</div>
@@ -288,7 +248,7 @@ export function PracticeView() {
               )}
             </div>
           )}
-          {running && (!result || result.letter==='?') && (
+          {running && !mlDown && (!result || result.letter==='?') && (
             <div style={{position:'absolute',top:12,left:12,background:'rgba(8,13,26,.7)',borderRadius:10,padding:'6px 12px',fontSize:12,color:'var(--t3)'}}>
               Sin mano detectada
             </div>
@@ -313,6 +273,16 @@ export function PracticeView() {
                 {loaded?'▶ Iniciar práctica':'⏳ Cargando…'}
               </button>
           }
+          {running && (
+            <button
+              className="btn-ghost"
+              onClick={captureFixture}
+              disabled={!latestLmRef.current}
+              title="Descarga los 21 landmarks del frame actual como JSON (para fixtures de prueba)"
+            >
+              📥 Fixture
+            </button>
+          )}
           <button className="btn-ghost" onClick={()=>setHistory([])}>Limpiar</button>
         </div>
 

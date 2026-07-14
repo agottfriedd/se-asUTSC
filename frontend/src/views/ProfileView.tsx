@@ -1,9 +1,9 @@
-import type { User } from '../types';
+import type { UserProfile } from '../types';
 import { BADGES_LIST } from '../data/lessons';
 import { StatCard } from '../components/UI';
 
 interface Props {
-  user: User;
+  user: UserProfile;
   onLogout: () => void;
 }
 

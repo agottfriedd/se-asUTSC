@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { api, apiLevelToLabel } from '../lib/api';
+import { api } from '../lib/api';
 import type { SignFromAPI } from '../lib/api';
 import type { HandConfig } from '../types';
 import { HandSVG } from '../components/HandSVG';

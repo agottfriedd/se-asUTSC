@@ -21,94 +21,9 @@ declare global {
   }
 }
 
-// ── Clasificador LSM (mismo que PracticeView) ───────────────────────
-const norm = (v: [number,number,number]): [number,number,number] => {
-  const n = Math.sqrt(v[0]**2+v[1]**2+v[2]**2) || 1e-8;
-  return [v[0]/n, v[1]/n, v[2]/n];
-};
-const dot  = (a:[number,number,number], b:[number,number,number]) =>
-  a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
-const dist = (a:Pt, b:Pt) => Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2+(a.z-b.z)**2);
-
-function classifyLSM(lm: Pt[]): { letter: string; confidence: number } {
-  if (lm.length < 21) return { letter:'?', confidence:0 };
-  const pu = norm([lm[9].x-lm[0].x, lm[9].y-lm[0].y, lm[9].z-lm[0].z]);
-  const pl = norm([lm[5].x-lm[17].x, lm[5].y-lm[17].y, lm[5].z-lm[17].z]);
-  const palmSize = dist(lm[0], lm[9]) || 1;
-  const joints: Record<string,[number,number,number,number]> = {
-    thumb:[1,2,3,4], index:[5,6,7,8], middle:[9,10,11,12], ring:[13,14,15,16], pinky:[17,18,19,20]
-  };
-  const ext: Record<string,number> = {};
-  for (const [name,[mi,pi,,ti]] of Object.entries(joints)) {
-    const mcp=lm[mi], pip=lm[pi], tip=lm[ti];
-    const v1=norm([pip.x-mcp.x, pip.y-mcp.y, pip.z-mcp.z]);
-    const v2=norm([tip.x-pip.x, tip.y-pip.y, tip.z-pip.z]);
-    const cosPip = Math.max(-1, Math.min(1, dot(v1,v2)));
-    const elevation = ([tip.x-mcp.x, tip.y-mcp.y, tip.z-mcp.z] as [number,number,number])
-      .reduce((s,v,i) => s + v*pu[i], 0) / palmSize;
-    ext[name] = Math.max(0, Math.min(1, ((cosPip+1)/2) * Math.max(0, elevation)));
-  }
-  const pc = { x:(lm[5].x+lm[9].x+lm[13].x+lm[17].x)/4, y:(lm[5].y+lm[9].y+lm[13].y+lm[17].y)/4, z:(lm[5].z+lm[9].z+lm[13].z+lm[17].z)/4 };
-  const thumbSide = ([lm[4].x-lm[0].x,lm[4].y-lm[0].y,lm[4].z-lm[0].z] as [number,number,number]).reduce((s,v,i)=>s+v*pl[i],0)/palmSize;
-  const thumbUp2  = ([lm[4].x-lm[0].x,lm[4].y-lm[0].y,lm[4].z-lm[0].z] as [number,number,number]).reduce((s,v,i)=>s+v*pu[i],0)/palmSize;
-  const thumbFwd  = ([lm[4].x-pc.x,lm[4].y-pc.y,lm[4].z-pc.z] as [number,number,number]).reduce((s,v,i)=>s+v*pu[i],0)/palmSize;
-  const v_i1 = norm([lm[6].x-lm[5].x, lm[6].y-lm[5].y, lm[6].z-lm[5].z]);
-  const v_i2 = norm([lm[7].x-lm[6].x, lm[7].y-lm[6].y, lm[7].z-lm[6].z]);
-  const indexPipCos = Math.max(-1, Math.min(1, dot(v_i1, v_i2)));
-  const f = {
-    ext, thumbSide, thumbUp: thumbUp2, thumbForward: thumbFwd,
-    dThumbIndex: dist(lm[4],lm[8])/palmSize,
-    dIndexMiddle: dist(lm[8],lm[12])/palmSize,
-    palmSize,
-    indexPipCos,
-  };
-  const EXT=0.55, FOLD=0.30;
-  const g = {
-    idx: f.ext.index>EXT, mid: f.ext.middle>EXT, rng: f.ext.ring>EXT, pky: f.ext.pinky>EXT,
-    idx_f: f.ext.index<FOLD, mid_f: f.ext.middle<FOLD, rng_f: f.ext.ring<FOLD, pky_f: f.ext.pinky<FOLD,
-    thumbAbducted: f.thumbSide>0.35, thumbUp: f.thumbUp>0.45, thumbOver: f.thumbForward<-0.15,
-    thumbTouchIdx: f.dThumbIndex<0.35, idxMidClose: f.dIndexMiddle<0.18,
-    idxMidSpread: f.dIndexMiddle>0.28, indexHooked: f.indexPipCos<0.30,
-  };
-  let letter='?', base=0.25;
-  if (g.idx_f && g.mid_f && g.rng_f && g.pky_f) {
-    if (g.thumbOver) { letter='S'; base=0.90; }
-    else if (f.dThumbIndex<0.20) { letter='T'; base=0.85; }
-    else if (g.thumbAbducted && g.thumbUp) { letter='A'; base=0.87; }
-    else { letter='A'; base=0.80; }
-  } else if (g.idx && g.mid_f && g.rng_f && g.pky_f) {
-    if (g.thumbAbducted && g.thumbUp) { letter='L'; base=0.93; }
-    else if (g.thumbAbducted) { letter='G'; base=0.86; }
-    else if (g.indexHooked) { letter='X'; base=0.82; }
-    else { letter='D'; base=0.88; }
-  } else if (g.idx_f && g.mid_f && g.rng_f && g.pky) {
-    if (g.thumbAbducted && g.thumbUp) { letter='Y'; base=0.93; }
-    else { letter='I'; base=0.91; }
-  } else if (g.idx && g.mid_f && g.rng_f && g.pky) { letter='P'; base=0.86; }
-  else if (g.idx && g.mid && g.rng_f && g.pky_f) {
-    if (g.thumbAbducted) { letter='K'; base=0.87; }
-    else if (g.idxMidClose) { letter='U'; base=0.89; }
-    else if (g.idxMidSpread) { letter='V'; base=0.89; }
-    else { letter='H'; base=0.81; }
-  } else if (g.idx && g.mid && g.rng && g.pky_f) { letter='W'; base=0.88; }
-  else if (g.idx && g.mid && g.rng && g.pky) { letter='B'; base=0.91; }
-  else {
-    const allBent = f.ext.index>FOLD&&f.ext.index<EXT && f.ext.middle>FOLD&&f.ext.middle<EXT && f.ext.ring>FOLD&&f.ext.ring<EXT;
-    const allLow  = f.ext.index<0.62 && f.ext.middle<0.62 && f.ext.ring<0.62 && f.ext.pinky<0.62;
-    if (allBent && f.dThumbIndex<0.28) { letter='O'; base=0.85; }
-    else if (allBent) { letter='C'; base=0.81; }
-    else if (allLow && g.thumbTouchIdx) { letter='F'; base=0.79; }
-    else if (allLow && f.ext.index<0.45 && f.ext.middle<0.45) {
-      letter = g.thumbOver ? 'S' : 'E'; base = g.thumbOver ? 0.75 : 0.77;
-    } else if (g.indexHooked && g.idx_f && g.mid_f && g.pky_f) { letter='X'; base=0.83; }
-    else {
-      const n = [g.idx,g.mid,g.rng,g.pky].filter(Boolean).length;
-      letter = ['?','D','U','W','B'][n]||'?'; base = [0.25,0.52,0.48,0.48,0.55][n]||0.25;
-    }
-  }
-  const sizeOk = Math.min(1.0, f.palmSize/0.12);
-  return { letter, confidence: Math.round(base*sizeOk*100)/100 };
-}
+// La clasificación LSM vive en ml-service/app/classifier.py (única fuente de
+// verdad). Aquí solo extraemos los 21 landmarks con MediaPipe y los enviamos a
+// POST /classify vía api.ml.classify(). Ver PracticeView.tsx (mismo patrón).
 
 // ── Props ───────────────────────────────────────────────────────────
 interface Props {
@@ -117,7 +32,11 @@ interface Props {
   onProgress: (lessonId: number, pct: number, completed: boolean) => void;
 }
 
-const STABLE_FRAMES_NEEDED = 20;
+// Throttle de la clasificación remota (un request en vuelo a la vez).
+const CLASSIFY_MIN_INTERVAL_MS = 150;   // ~6.7 clasificaciones/s
+// Frames estables para desbloquear. Antes 20 @30fps local (~0.7s). Con la
+// clasificación remota a ~6.7/s, 13 frames ≈ 2s reales (13 × 150ms ≈ 1.95s).
+const STABLE_FRAMES_NEEDED = 13;
 
 export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
   const [content,  setContent]  = useState<ContentBlock[]>([]);
@@ -141,6 +60,11 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
   const contentRef = useRef<ContentBlock[]>([]);
   const [lastDetected,    setLastDetected]    = useState('');
   const [cameraError,     setCameraError]     = useState('');
+  const [mlDown,          setMlDown]          = useState(false);
+
+  // Clasificación remota: un request en vuelo a la vez + throttle
+  const busyRef    = useRef(false);
+  const lastReqRef = useRef(0);
 
   const block = content.length > 0 && step < content.length ? content[step] : null;
   const isSignBlock = block?.type === 'sign';
@@ -204,7 +128,8 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
   // ── Reset estado de detección al cambiar bloque ──────────────────
   useEffect(() => {
     setDetectedLetter(''); setStableCount(0);
-    setSignUnlocked(false); setLastDetected('');
+    setSignUnlocked(false); setLastDetected(''); setMlDown(false);
+    busyRef.current = false; lastReqRef.current = 0;
   }, [step]);
 
   // ── Iniciar cámara ───────────────────────────────────────────────
@@ -243,24 +168,41 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
           const lm = results.multiHandLandmarks[0];
           window.drawConnectors(ctx, lm, window.HAND_CONNECTIONS, { color: '#0ED2B8', lineWidth: 2 });
           window.drawLandmarks(ctx, lm, { color: '#9D7BF8', radius: 3, fillColor: '#9D7BF8' });
-          const prediction = classifyLSM(lm);
-          setDetectedLetter(prediction.letter);
-          if (prediction.confidence > 0.72 && prediction.letter !== '?') {
-            setLastDetected(prev => {
-              if (prev === prediction.letter && prediction.letter === targetLetter) {
-                setStableCount(c => {
-                  const next = c + 1;
-                  if (next >= STABLE_FRAMES_NEEDED) {
-                    setSignUnlocked(true);
-                    return 0;
-                  }
-                  return next;
-                });
-              } else {
-                setStableCount(1);
-              }
-              return prediction.letter;
-            });
+
+          // Clasificación remota (fuente de verdad: ml-service). El dibujo de
+          // arriba sigue a ~30fps; los requests van con throttle + guard.
+          const now = Date.now();
+          if (!busyRef.current && now - lastReqRef.current >= CLASSIFY_MIN_INTERVAL_MS) {
+            busyRef.current = true;
+            lastReqRef.current = now;
+            api.ml.classify(lm)
+              .then(prediction => {
+                setMlDown(false);
+                setDetectedLetter(prediction.letter);
+                if (prediction.confidence > 0.72 && prediction.letter !== '?') {
+                  setLastDetected(prev => {
+                    if (prev === prediction.letter && prediction.letter === targetLetter) {
+                      setStableCount(c => {
+                        const next = c + 1;
+                        if (next >= STABLE_FRAMES_NEEDED) {
+                          setSignUnlocked(true);
+                          return 0;
+                        }
+                        return next;
+                      });
+                    } else {
+                      setStableCount(1);
+                    }
+                    return prediction.letter;
+                  });
+                }
+              })
+              .catch(() => {
+                // Servicio ML caído: sin él no se puede avanzar de lección.
+                setMlDown(true);
+                setDetectedLetter('');
+              })
+              .finally(() => { busyRef.current = false; });
           }
         } else {
           setDetectedLetter('');
@@ -290,6 +232,7 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
       videoRef.current.srcObject = null;
     }
     setCameraOn(false);
+    busyRef.current = false;
   }, []);
 
   const goBack = useCallback(() => {
@@ -419,6 +362,17 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
                       <div style={{ fontSize:28 }}>⚠️</div>
                       <div style={{ fontSize:13,color:'var(--red)' }}>{cameraError}</div>
                       <button className="btn-primary" onClick={startCamera}>Reintentar</button>
+                    </div>
+                  )}
+                  {mlDown && cameraOn && (
+                    <div style={{ position:'absolute',inset:0,zIndex:20,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8,padding:18,textAlign:'center',background:'rgba(8,13,26,.9)',backdropFilter:'blur(4px)' }}>
+                      <div style={{ fontSize:34 }}>🔌</div>
+                      <div style={{ fontWeight:800,fontSize:14,color:'var(--red)' }}>Sin conexión con el servicio de reconocimiento</div>
+                      <div style={{ fontSize:11.5,color:'var(--t2)',lineHeight:1.5,maxWidth:280 }}>
+                        La detección de señas ahora corre en el servidor (ml-service).
+                        No puedes avanzar de lección hasta que responda. Reintentando
+                        automáticamente…
+                      </div>
                     </div>
                   )}
                   {signUnlocked && (

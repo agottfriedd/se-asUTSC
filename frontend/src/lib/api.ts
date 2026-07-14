@@ -1,4 +1,5 @@
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const BASE    = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const ML_BASE = import.meta.env.VITE_ML_URL  ?? 'http://localhost:8000';
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);
@@ -56,7 +57,34 @@ export const api = {
       post<ProgressFromAPI>('/api/progress', data),
   },
   health: () => get<{ status: string }>('/health'),
+
+  // ─── Servicio ML (FastAPI, puerto distinto al backend) ─────
+  ml: {
+    /** Clasifica 21 landmarks de MediaPipe. Fuente de verdad: ml-service/app/classifier.py */
+    classify: async (landmarks: LandmarkPoint[]): Promise<MLClassifyResponse> => {
+      const res = await fetch(`${ML_BASE}/classify`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ landmarks }),
+      });
+      if (!res.ok) throw new Error(`ML error ${res.status}: /classify`);
+      return res.json();
+    },
+    health: async (): Promise<{ status: string }> => {
+      const res = await fetch(`${ML_BASE}/health`);
+      if (!res.ok) throw new Error(`ML error ${res.status}: /health`);
+      return res.json();
+    },
+  },
 };
+
+// ─── ML service types ─────────────────────────────────────────
+export interface LandmarkPoint { x: number; y: number; z: number }
+
+export interface MLClassifyResponse {
+  letter:     string;  // 'A'..'Y' o '?' si no supera el umbral
+  confidence: number;  // [0,1]
+}
 
 // ─── API response types ───────────────────────────────────────
 export interface LessonFromAPI {

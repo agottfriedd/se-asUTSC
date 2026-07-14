@@ -11,7 +11,7 @@ import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .classifier import classify
 
@@ -52,6 +52,18 @@ class RecognizeResponse(BaseModel):
     hand_found: bool
     landmarks:  Optional[list] = None
 
+class Landmark(BaseModel):
+    x: float
+    y: float
+    z: float
+
+class ClassifyRequest(BaseModel):
+    landmarks: list[Landmark] = Field(min_length=21, max_length=21)
+
+class ClassifyResponse(BaseModel):
+    letter:     str
+    confidence: float
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "SeñasUTSCMX ML"}
@@ -84,6 +96,12 @@ def recognize(req: RecognizeRequest):
         response.landmarks = lm_list
 
     return response
+
+@app.post("/classify", response_model=ClassifyResponse)
+def classify_landmarks(req: ClassifyRequest):
+    """Clasifica 21 landmarks de MediaPipe ya extraídos (sin imagen)."""
+    letter, confidence = classify([lm.model_dump() for lm in req.landmarks])
+    return ClassifyResponse(letter=letter, confidence=confidence)
 
 @app.post("/landmarks")
 def get_landmarks(req: RecognizeRequest):

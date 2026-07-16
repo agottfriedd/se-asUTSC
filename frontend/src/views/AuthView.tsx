@@ -1,4 +1,9 @@
 import { useState } from 'react';
+import {
+  checkPassword, passwordStrength, passwordError, allChecksPassed,
+  REQUIREMENT_ITEMS,
+} from '../lib/passwordPolicy';
+import type { PasswordStrength } from '../lib/passwordPolicy';
 
 interface Props {
   mode:           'login' | 'register';
@@ -8,14 +13,26 @@ interface Props {
   onSwitchMode:   (m: 'login' | 'register') => void;
 }
 
+const STRENGTH_LABEL: Record<PasswordStrength, string> = {
+  weak: 'Débil', medium: 'Media', strong: 'Fuerte',
+};
+const STRENGTH_COLOR: Record<PasswordStrength, string> = {
+  weak: 'var(--red)', medium: 'var(--amb)', strong: 'var(--grn)',
+};
+const STRENGTH_BARS: Record<PasswordStrength, number> = {
+  weak: 1, medium: 2, strong: 3,
+};
+
 export function AuthView({ mode, onLogin, onRegister, onBack, onSwitchMode }: Props) {
-  const [isLogin, setIsLogin] = useState(mode === 'login');
-  const [name,    setName]    = useState('');
-  const [email,   setEmail]   = useState('');
-  const [pw,      setPw]      = useState('');
-  const [showPw,  setShowPw]  = useState(false);
-  const [err,     setErr]     = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isLogin,    setIsLogin]    = useState(mode === 'login');
+  const [name,       setName]       = useState('');
+  const [email,      setEmail]      = useState('');
+  const [pw,         setPw]         = useState('');
+  const [confirmPw,  setConfirmPw]  = useState('');
+  const [showPw,     setShowPw]     = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [err,        setErr]        = useState('');
+  const [loading,    setLoading]    = useState(false);
 
   const toggle = (login: boolean) => {
     setIsLogin(login);
@@ -23,11 +40,25 @@ export function AuthView({ mode, onLogin, onRegister, onBack, onSwitchMode }: Pr
     onSwitchMode(login ? 'login' : 'register');
   };
 
+  const pwChecks    = checkPassword(pw);
+  const strength    = passwordStrength(pw);
+  const confirmOk   = confirmPw.length > 0 && confirmPw === pw;
+  const confirmBad  = confirmPw.length > 0 && confirmPw !== pw;
+  // Todos los requisitos son obligatorios y bloqueantes: sin esto no se
+  // puede ni pulsar "Crear cuenta".
+  const canRegister = allChecksPassed(pwChecks) && confirmOk;
+
   const handleSubmit = async () => {
     setErr('');
     if (!email || !pw) { setErr('Completa todos los campos.'); return; }
-    if (!isLogin && !name) { setErr('Ingresa tu nombre completo.'); return; }
-    if (pw.length < 6) { setErr('La contraseña debe tener al menos 6 caracteres.'); return; }
+    if (!isLogin) {
+      if (!name) { setErr('Ingresa tu nombre completo.'); return; }
+      // Validación de cliente — más estricta que el mínimo de 6 de Firebase
+      // Auth. Debe correr ANTES de llamar a Firebase.
+      const pwErr = passwordError(pw);
+      if (pwErr) { setErr(pwErr); return; }
+      if (pw !== confirmPw) { setErr('Las contraseñas no coinciden.'); return; }
+    }
     setLoading(true);
     try {
       if (isLogin) await onLogin(email, pw);
@@ -77,16 +108,72 @@ export function AuthView({ mode, onLogin, onRegister, onBack, onSwitchMode }: Pr
             <div>
               <div style={{ fontSize:12,color:'var(--t3)',marginBottom:5,fontWeight:500 }}>Contraseña</div>
               <div style={{ position:'relative' }}>
-                <input className="input-field" type={showPw?'text':'password'} placeholder="Mínimo 6 caracteres" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSubmit()} style={{ paddingRight:40 }}/>
+                <input className="input-field" type={showPw?'text':'password'}
+                  placeholder={isLogin?'Tu contraseña':'Crea una contraseña segura'}
+                  value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSubmit()} style={{ paddingRight:40 }}/>
                 <button onClick={()=>setShowPw(v=>!v)} style={{ position:'absolute',right:11,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:15,padding:2 }}>
                   {showPw?'🙈':'👁️'}
                 </button>
               </div>
+
+              {/* Medidor de fortaleza + requisitos — solo en registro */}
+              {!isLogin && (
+                <div style={{ marginTop:9 }}>
+                  <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:8 }}>
+                    <div style={{ flex:1,display:'flex',gap:4 }}>
+                      {[0,1,2].map(i => (
+                        <div key={i} style={{ flex:1,height:4,borderRadius:2,background:pw.length>0&&i<STRENGTH_BARS[strength]?STRENGTH_COLOR[strength]:'var(--bdr)',transition:'background .2s' }}/>
+                      ))}
+                    </div>
+                    {pw.length > 0 && (
+                      <span style={{ fontSize:11,fontWeight:700,color:STRENGTH_COLOR[strength],minWidth:38,textAlign:'right' }}>
+                        {STRENGTH_LABEL[strength]}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display:'flex',flexDirection:'column',gap:4 }}>
+                    {REQUIREMENT_ITEMS.map(({ key, label }) => {
+                      const met = pwChecks[key];
+                      const violated = key === 'notCommon' && pw.length > 0 && !met;
+                      const satisfied = met && pw.length > 0;
+                      const color = violated ? 'var(--red)' : satisfied ? 'var(--grn)' : 'var(--t3)';
+                      const icon  = violated ? '❌' : satisfied ? '✅' : '⭕';
+                      return (
+                        <div key={key} style={{ display:'flex',alignItems:'center',gap:6,fontSize:11.5,color }}>
+                          <span>{icon}</span>{label}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
+
+            {!isLogin && (
+              <div>
+                <div style={{ fontSize:12,color:'var(--t3)',marginBottom:5,fontWeight:500 }}>Confirmar contraseña</div>
+                <div style={{ position:'relative' }}>
+                  <input className="input-field" type={showConfirmPw?'text':'password'} placeholder="Repite tu contraseña"
+                    value={confirmPw} onChange={e=>setConfirmPw(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSubmit()}
+                    style={{ paddingRight:40, borderColor:confirmBad?'var(--red)':undefined }}/>
+                  <button onClick={()=>setShowConfirmPw(v=>!v)} style={{ position:'absolute',right:11,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:15,padding:2 }}>
+                    {showConfirmPw?'🙈':'👁️'}
+                  </button>
+                </div>
+                {confirmBad && (
+                  <div style={{ fontSize:11.5,color:'var(--red)',marginTop:5 }}>❌ Las contraseñas no coinciden</div>
+                )}
+                {confirmOk && (
+                  <div style={{ fontSize:11.5,color:'var(--grn)',marginTop:5 }}>✅ Las contraseñas coinciden</div>
+                )}
+              </div>
+            )}
+
             {err && (
               <div style={{ fontSize:12,color:'var(--red)',background:'rgba(240,80,80,.1)',borderRadius:8,padding:'8px 12px' }}>{err}</div>
             )}
-            <button className="btn-primary" style={{ width:'100%',justifyContent:'center',padding:'12px',fontSize:14,marginTop:2 }} onClick={handleSubmit} disabled={loading}>
+            <button className="btn-primary" style={{ width:'100%',justifyContent:'center',padding:'12px',fontSize:14,marginTop:2 }}
+              onClick={handleSubmit} disabled={loading || (!isLogin && !canRegister)}>
               {loading ? 'Procesando…' : isLogin ? 'Iniciar sesión' : 'Crear cuenta'}
             </button>
             {isLogin && (

@@ -116,6 +116,7 @@ export interface ProgressFromAPI {
   lessonId:  number;
   progress:  number;
   completed: boolean;
+  updatedAt?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────

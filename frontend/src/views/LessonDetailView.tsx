@@ -38,6 +38,36 @@ const CLASSIFY_MIN_INTERVAL_MS = 150;   // ~6.7 clasificaciones/s
 // clasificación remota a ~6.7/s, 13 frames ≈ 2s reales (13 × 150ms ≈ 1.95s).
 const STABLE_FRAMES_NEEDED = 13;
 
+// ── Fallback de práctica ────────────────────────────────────────────
+// Si tras este tiempo el usuario no logra la seña con la cámara, se le
+// ofrece una ruta alternativa (mini-quiz visual) para no atascarse.
+const FALLBACK_TIMEOUT_S = 60;
+// Letras con imagen disponible en /public/signs/ — pool para los distractores
+// del mini-quiz. Se garantiza que todas tienen PNG (evita el fallback a texto
+// que delataría cuáles son "de relleno").
+const SIGN_POOL = [
+  'A','B','C','D','E','F','G','H','I','J','K','L','M','N','Ñ',
+  'O','P','Q','R','S','T','U','V','W','X','Y','Z',
+];
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// 4 opciones para el mini-quiz: la letra objetivo + 3 distractoras aleatorias.
+function buildQuizOptions(target: string): string[] {
+  const distractors = shuffle(SIGN_POOL.filter(l => l !== target)).slice(0, 3);
+  return shuffle([target, ...distractors]);
+}
+
+// Segundos → "m:ss"
+const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
 export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
   const [content,  setContent]  = useState<ContentBlock[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -51,6 +81,11 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
   const rafRef     = useRef<number>(0);
   const handsRef   = useRef<HandsInstance|null>(null);
   const stepRef    = useRef<number>(0);
+  // Token de sesión: cada startCamera() se identifica con un id. Si stopCamera()
+  // corre mientras un startCamera() está a mitad de un await (getUserMedia,
+  // espera de video listo…), el id ya no coincide y esa invocación se aborta y
+  // libera lo que haya adquirido, en vez de pisar la cámara ya detenida.
+  const sessionRef = useRef(0);
 
   const [mediapipeLoaded, setMediapipeLoaded] = useState(false);
   const [cameraOn,        setCameraOn]        = useState(false);
@@ -62,6 +97,13 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
   const [cameraError,     setCameraError]     = useState('');
   const [mlDown,          setMlDown]          = useState(false);
 
+  // ── Fallback (mini-quiz visual) ─────────────────────────────────
+  const [countdown,   setCountdown]   = useState(FALLBACK_TIMEOUT_S);
+  const [quizOpen,    setQuizOpen]    = useState(false);
+  const [quizOptions, setQuizOptions] = useState<string[]>([]);
+  const [wrongPick,   setWrongPick]   = useState<string|null>(null);
+  const timerRef = useRef<number|null>(null);
+
   // Clasificación remota: un request en vuelo a la vez + throttle
   const busyRef    = useRef(false);
   const lastReqRef = useRef(0);
@@ -72,6 +114,10 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
   
   // Alias de tipo any para evadir los errores estrictos en propiedades dinámicas del JSX
   const b = block as any;
+
+  // El fallback se ofrece si, estando en un bloque de seña sin desbloquear, o
+  // bien se agotó el minuto, o el servicio ML está caído (para no atascarse).
+  const fallbackOffered = isSignBlock && !signUnlocked && (countdown === 0 || mlDown);
 
   useEffect(() => {
     contentRef.current = content;
@@ -130,16 +176,51 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
     setDetectedLetter(''); setStableCount(0);
     setSignUnlocked(false); setLastDetected(''); setMlDown(false);
     busyRef.current = false; lastReqRef.current = 0;
+    // Reset del fallback: cierra el quiz y limpia su estado (el countdown se
+    // reinicia en su propio efecto).
+    setQuizOpen(false); setQuizOptions([]); setWrongPick(null);
   }, [step]);
+
+  // ── Temporizador del fallback ────────────────────────────────────
+  // Al entrar a un bloque de seña arranca una cuenta regresiva de 60s. Si se
+  // agota sin lograr la seña, se ofrece el mini-quiz. Se reinicia al cambiar de
+  // bloque y se limpia en el cleanup para no fugar el interval.
+  useEffect(() => {
+    if (!isSignBlock) return;
+    setCountdown(FALLBACK_TIMEOUT_S);
+    const id = window.setInterval(() => {
+      setCountdown(c => {
+        if (c <= 1) { window.clearInterval(id); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+    timerRef.current = id;
+    return () => { window.clearInterval(id); timerRef.current = null; };
+  }, [isSignBlock, step]);
+
+  // Si se logra la seña con la cámara, el temporizador ya no hace falta.
+  useEffect(() => {
+    if (signUnlocked && timerRef.current !== null) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, [signUnlocked]);
 
   // ── Iniciar cámara ───────────────────────────────────────────────
   const startCamera = useCallback(async () => {
     setCameraError('');
+    const mySession = ++sessionRef.current;
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480, facingMode: 'user' }
       });
-      if (!videoRef.current) return;
+      // stopCamera() ya corrió (cambió el bloque/step, se desmontó, etc.)
+      // mientras esperábamos el permiso de cámara: soltar el stream y salir.
+      if (sessionRef.current !== mySession || !videoRef.current) {
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
       videoRef.current.srcObject = stream;
       videoRef.current.play();
 
@@ -149,6 +230,12 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
         v.onloadeddata = check;
         requestAnimationFrame(check);
       });
+
+      if (sessionRef.current !== mySession) {
+        stream.getTracks().forEach(t => t.stop());
+        if (videoRef.current?.srcObject === stream) videoRef.current.srcObject = null;
+        return;
+      }
 
       handsRef.current = new window.Hands({
         locateFile: (f: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
@@ -210,15 +297,29 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
         ctx.restore();
       });
 
+      if (sessionRef.current !== mySession) {
+        // Se canceló mientras se inicializaba MediaPipe: no arrancar el loop.
+        stream.getTracks().forEach(t => t.stop());
+        if (videoRef.current?.srcObject === stream) videoRef.current.srcObject = null;
+        handsRef.current = null;
+        return;
+      }
+
       setCameraOn(true);
       const loop = async () => {
+        // Se vuelve a comprobar en cada frame: si stopCamera() invalidó esta
+        // sesión, el loop se corta aquí en vez de seguir pidiendo frames.
+        if (sessionRef.current !== mySession) return;
         if (videoRef.current && handsRef.current && videoRef.current.videoWidth > 0) {
           await handsRef.current.send({ image: videoRef.current });
         }
-        rafRef.current = requestAnimationFrame(loop);
+        if (sessionRef.current === mySession) {
+          rafRef.current = requestAnimationFrame(loop);
+        }
       };
       rafRef.current = requestAnimationFrame(loop);
     } catch (err) {
+      if (stream) stream.getTracks().forEach(t => t.stop());
       console.error('Camera error:', err);
       setCameraError('No se pudo acceder a la cámara.');
     }
@@ -226,11 +327,14 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
 
   // ── Detener cámara ───────────────────────────────────────────────
   const stopCamera = useCallback(() => {
+    sessionRef.current += 1; // invalida cualquier startCamera() en vuelo
     cancelAnimationFrame(rafRef.current);
+    rafRef.current = 0;
     if (videoRef.current?.srcObject) {
       (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
       videoRef.current.srcObject = null;
     }
+    handsRef.current = null;
     setCameraOn(false);
     busyRef.current = false;
   }, []);
@@ -238,6 +342,30 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
   const goBack = useCallback(() => {
     if (step > 0) { setStep(s => s - 1); setQuizAns(null); }
   }, [step]);
+
+  // ── Fallback: mini-quiz visual ───────────────────────────────────
+  const openFallbackQuiz = useCallback(() => {
+    setQuizOptions(buildQuizOptions(targetLetter));
+    setWrongPick(null);
+    setQuizOpen(true);
+  }, [targetLetter]);
+
+  const answerFallbackQuiz = useCallback((letter: string) => {
+    if (wrongPick) return; // ya falló esta ronda; espera a "otra combinación"
+    if (letter === targetLetter) {
+      // Mismo desbloqueo que lograr la seña con la cámara.
+      setSignUnlocked(true);
+      setQuizOpen(false);
+      setWrongPick(null);
+    } else {
+      setWrongPick(letter);
+    }
+  }, [wrongPick, targetLetter]);
+
+  const retryFallbackQuiz = useCallback(() => {
+    setQuizOptions(buildQuizOptions(targetLetter));
+    setWrongPick(null);
+  }, [targetLetter]);
 
   // ────────────────────────────────────────────────────────────────
   const total = content.length;
@@ -309,12 +437,12 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
                 </span>
               </div>
               <div style={{ display:'flex',gap:20,alignItems:'flex-start',marginBottom:20 }}>
-                {/* Imagen de la seña */}
+                {/* Imagen de la seña — durante el quiz se difumina (sigue dando una pista tenue, sin delatar la respuesta) */}
                 <div style={{ flexShrink:0,width:120,height:120,borderRadius:14,overflow:'hidden',border:'2px solid var(--teal)',background:'var(--bg3)',display:'flex',alignItems:'center',justifyContent:'center' }}>
                   <img
                     src={`/signs/${b.letter}.png`}
                     alt={`Seña ${b.letter}`}
-                    style={{ width:'100%',height:'100%',objectFit:'cover' }}
+                    style={{ width:'100%',height:'100%',objectFit:'cover',filter:quizOpen?'blur(7px)':'none',transition:'filter .2s' }}
                     onError={e => {
                       (e.target as HTMLImageElement).style.display = 'none';
                       (e.target as HTMLImageElement).parentElement!.innerHTML = `<div style="font-size:52px;font-weight:900;color:var(--teal)">${b.letter}</div>`;
@@ -342,10 +470,21 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
             <div style={{ padding:'0 20px 20px' }}>
               <div style={{ fontWeight:700,fontSize:14,marginBottom:10,display:'flex',alignItems:'center',gap:8 }}>
                 <span style={{ width:8,height:8,borderRadius:'50%',background:cameraOn?'#22C97E':'var(--t3)',display:'inline-block' }}/>
-                {cameraOn ? `Haz la seña "${targetLetter}"` : 'Iniciando cámara…'}
+                <span style={{ flex:1 }}>{cameraOn ? `Haz la seña "${targetLetter}"` : 'Iniciando cámara…'}</span>
+                {/* Cuenta regresiva discreta: solo mientras corre y sin desbloquear */}
+                {!signUnlocked && countdown > 0 && (
+                  <span
+                    title="Si se te complica, en cuanto llegue a 0:00 te ofreceremos otra forma de practicar"
+                    style={{ display:'flex',alignItems:'center',gap:5,fontSize:12,fontWeight:700,color:countdown<=10?'var(--amb)':'var(--t3)',background:'var(--bg3)',border:'1px solid var(--bdr)',borderRadius:20,padding:'3px 10px' }}>
+                    ⏱ {fmtTime(countdown)}
+                  </span>
+                )}
               </div>
 
-              <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:16 }}>
+              {/* Cámara + referencia — ambas se ocultan por completo mientras el quiz
+                  está activo (display:none, no desmontado: conserva el stream/refs de
+                  la cámara corriendo en segundo plano para que reaparezca sin reiniciar). */}
+              <div style={{ display:quizOpen?'none':'grid',gridTemplateColumns:'1fr 1fr',gap:16 }}>
 
                 {/* Cámara izquierda */}
                 <div style={{ position:'relative',borderRadius:14,overflow:'hidden',background:'var(--bg3)',border:`2px solid ${signUnlocked?'#22C97E':'var(--bdr)'}`,aspectRatio:'4/3',transition:'border-color .3s' }}>
@@ -364,14 +503,14 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
                       <button className="btn-primary" onClick={startCamera}>Reintentar</button>
                     </div>
                   )}
-                  {mlDown && cameraOn && (
+                  {mlDown && cameraOn && !signUnlocked && (
                     <div style={{ position:'absolute',inset:0,zIndex:20,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8,padding:18,textAlign:'center',background:'rgba(8,13,26,.9)',backdropFilter:'blur(4px)' }}>
                       <div style={{ fontSize:34 }}>🔌</div>
                       <div style={{ fontWeight:800,fontSize:14,color:'var(--red)' }}>Sin conexión con el servicio de reconocimiento</div>
                       <div style={{ fontSize:11.5,color:'var(--t2)',lineHeight:1.5,maxWidth:280 }}>
-                        La detección de señas ahora corre en el servidor (ml-service).
-                        No puedes avanzar de lección hasta que responda. Reintentando
-                        automáticamente…
+                        La detección de señas corre en el servidor (ml-service) y no
+                        responde. Reintentando automáticamente… o practica de otra
+                        forma con el botón de abajo. 👇
                       </div>
                     </div>
                   )}
@@ -397,7 +536,7 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
                   )}
                 </div>
 
-                {/* Imagen de referencia grande derecha */}
+                {/* Imagen de referencia grande derecha — la oculta el display:none del contenedor durante el quiz */}
                 <div style={{ borderRadius:14,overflow:'hidden',border:'2px solid var(--teal)',background:'var(--bg3)',aspectRatio:'4/3',display:'flex',alignItems:'center',justifyContent:'center',position:'relative' }}>
                   <img
                     src={`/signs/${targetLetter}.png`}
@@ -416,9 +555,71 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
 
               </div>
 
-              {cameraOn && !signUnlocked && (
+              {cameraOn && !signUnlocked && !fallbackOffered && (
                 <div style={{ marginTop:12,textAlign:'center',fontSize:13,color:'var(--t3)',lineHeight:1.5 }}>
                   Imita la seña de referencia frente a la cámara y mantenla estable
+                </div>
+              )}
+
+              {/* ── Fallback: ruta alternativa (aparece al agotar el minuto o si el ML está caído) ── */}
+              {fallbackOffered && !quizOpen && (
+                <div style={{ marginTop:16,padding:'16px',borderRadius:12,background:'var(--vio-d)',border:'1px solid rgba(157,123,248,.3)',textAlign:'center' }}>
+                  <div style={{ fontSize:13.5,color:'var(--t2)',marginBottom:12,lineHeight:1.5 }}>
+                    ¿Se te complica hacer la seña? No te preocupes, puedes practicar de otra forma.
+                  </div>
+                  <button className="btn-primary" onClick={openFallbackQuiz}
+                    style={{ background:'linear-gradient(135deg,#9D7BF8,#7B5BD8)',justifyContent:'center' }}>
+                    🧩 ¿Se te complica? Practica de otra forma
+                  </button>
+                </div>
+              )}
+
+              {/* ── Mini-quiz visual: identifica la seña "{targetLetter}" ──
+                  Ocupa todo el ancho que dejan libre la cámara y la referencia
+                  (ambas ocultas mientras tanto) — es el foco de la pantalla mientras
+                  está activo, no un panel flotando pequeño. */}
+              {quizOpen && !signUnlocked && (
+                <div style={{ marginTop:16,padding:'32px 28px',borderRadius:16,background:'var(--card)',border:'1px solid var(--vio-b)',textAlign:'center' }}>
+                  <div style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:9,marginBottom:8 }}>
+                    <span style={{ fontSize:22 }}>🧩</span>
+                    <span style={{ fontWeight:700,fontSize:19 }}>¿Cuál es la seña de la letra <span style={{ color:'var(--vio)' }}>{targetLetter}</span>?</span>
+                  </div>
+                  <div style={{ fontSize:14,color:'var(--t3)',marginBottom:24 }}>
+                    Toca la imagen que corresponde a la seña <strong>{targetLetter}</strong>.
+                  </div>
+                  {/* auto-fit + minmax: 4 en fila en pantallas anchas, cae a 2x2 (o 1 columna)
+                      en angostas — sin depender de media queries. */}
+                  <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:18 }}>
+                    {quizOptions.map(letter => {
+                      const isWrong = wrongPick === letter;
+                      const answered = wrongPick !== null;
+                      return (
+                        <button key={letter} className="quiz-tile" onClick={() => answerFallbackQuiz(letter)} disabled={answered}
+                          style={{ position:'relative',padding:0,borderRadius:16,overflow:'hidden',cursor:answered?'default':'pointer',background:'var(--bg3)',border:`3px solid ${isWrong?'var(--red)':'var(--bdr)'}`,aspectRatio:'1',transition:'.15s',opacity:answered&&!isWrong?0.5:1 }}>
+                          <img
+                            src={`/signs/${letter}.png`}
+                            alt={`Seña ${letter}`}
+                            style={{ width:'100%',height:'100%',objectFit:'contain',padding:14 }}
+                            onError={e => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).parentElement!.insertAdjacentHTML('beforeend', `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:900;color:var(--teal)">${letter}</div>`);
+                            }}
+                          />
+                          {isWrong && <span style={{ position:'absolute',top:8,right:10,fontSize:26 }}>❌</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {wrongPick !== null && (
+                    <div style={{ marginTop:20,padding:'14px 16px',borderRadius:10,background:'rgba(240,80,80,.1)',border:'1px solid rgba(240,80,80,.3)',maxWidth:520,marginLeft:'auto',marginRight:'auto' }}>
+                      <div style={{ fontSize:13.5,color:'var(--red)',fontWeight:600,marginBottom:10 }}>
+                        ❌ Esa no era. La seña <strong>{targetLetter}</strong> es otra — inténtalo con una combinación nueva.
+                      </div>
+                      <button className="btn-ghost" onClick={retryFallbackQuiz} style={{ justifyContent:'center' }}>
+                        🔄 Otra combinación
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -30,10 +30,28 @@ const SUBS: Record<AppView, string> = {
 };
 const LCOLORS: Record<string,string> = {Básico:'#0ED2B8',Intermedio:'#9D7BF8',Avanzado:'#F5A623'};
 
+// Nivel derivado del progreso real (no hay campo "nivel" separado en Postgres).
+function levelLabel(pct: number, completedCount: number): string {
+  if (completedCount === 0) return 'Sin nivel aún';
+  if (pct < 34) return 'Básico';
+  if (pct < 67) return 'Intermedio';
+  return 'Avanzado';
+}
+
 export function AppShell({ user, onLogout }: Props) {
   const [view,   setView]   = useState<AppView>('dashboard');
   const [lesson, setLesson] = useState<Lesson|null>(null);
-  const { saveProgress, getForLesson, globalProgress } = useProgress(user.uid);
+  const { saveProgress, getForLesson, globalProgress, completedCount, streak } = useProgress(user.uid);
+
+  // user con los campos derivados del progreso real (Postgres) sobrescritos;
+  // totalSigns y badges quedan en 0 — no hay forma de calcularlos hoy (ver reporte).
+  const derivedUser: UserProfile = {
+    ...user,
+    streak,
+    progress:       globalProgress,
+    totalCompleted: completedCount,
+    level:          levelLabel(globalProgress, completedCount),
+  };
 
   const nav = useCallback((dest: AppView, payload?: Lesson) => {
     if (dest==='lesson'&&payload) setLesson(payload);
@@ -71,7 +89,7 @@ export function AppShell({ user, onLogout }: Props) {
             <div style={{ width:30,height:30,borderRadius:'50%',background:'linear-gradient(135deg,#0ED2B8,#9D7BF8)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,color:'#040D14',flexShrink:0 }}>{initials}</div>
             <div style={{ flex:1,minWidth:0 }}>
               <div style={{ fontSize:12,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{user.name.split(' ')[0]} {user.name.split(' ').slice(-1)[0]}</div>
-              <div style={{ fontSize:10,color:'var(--t3)' }}>🔥 {user.streak}d · {globalProgress}%</div>
+              <div style={{ fontSize:10,color:'var(--t3)' }}>🔥 {streak}d · {globalProgress}%</div>
             </div>
           </div>
           <button className="nav-item" onClick={onLogout} style={{ color:'var(--red)',width:'100%' }}>
@@ -91,17 +109,17 @@ export function AppShell({ user, onLogout }: Props) {
           </div>
           <div style={{ background:'var(--amb-d)',border:'1px solid rgba(245,166,35,.22)',borderRadius:8,padding:'4px 10px',display:'flex',alignItems:'center',gap:5 }}>
             <span style={{ fontSize:13 }}>🔥</span>
-            <span style={{ fontSize:12,fontWeight:700,color:'var(--amb)' }}>{user.streak}</span>
+            <span style={{ fontSize:12,fontWeight:700,color:'var(--amb)' }}>{streak}</span>
           </div>
         </header>
         <main style={{ flex:1,overflow:'hidden' }}>
-          {view==='dashboard'  && <DashboardView user={user} nav={nav} getForLesson={getForLesson} globalProgress={globalProgress}/>}
+          {view==='dashboard'  && <DashboardView user={derivedUser} nav={nav} getForLesson={getForLesson} globalProgress={globalProgress}/>}
           {view==='dictionary' && <DictionaryView uid={user.uid}/>}
           {view==='lessons'    && <LessonsView nav={nav} getForLesson={getForLesson}/>}
           {view==='lesson'&&lesson && <LessonDetailView lesson={lesson} onBack={()=>setView('lessons')} onProgress={saveProgress}/>}
           {view==='practice'   && <PracticeView/>}
-          {view==='profile'    && <ProfileView user={{...user,progress:globalProgress}} onLogout={onLogout}/>}
-          {view==='admin'&&user.role==='admin' && <AdminView adminUser={user}/>}
+          {view==='profile'    && <ProfileView user={derivedUser} onLogout={onLogout}/>}
+          {view==='admin'&&user.role==='admin' && <AdminView adminUser={derivedUser}/>}
         </main>
       </div>
     </div>

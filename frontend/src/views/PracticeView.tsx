@@ -41,6 +41,9 @@ export function PracticeView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef<number>(0);
   const handsRef  = useRef<HandsInstance|null>(null);
+  // Token de sesión: invalida un startCamera() en vuelo si stopCamera() corre
+  // antes de que termine (p.ej. se sale de la vista mientras carga la cámara).
+  const sessionRef = useRef(0);
 
   const [result,     setResult]     = useState<RecognitionResult|null>(null);
   const [running,    setRunning]    = useState(false);
@@ -128,11 +131,18 @@ export function PracticeView() {
   const startCamera = useCallback(async () => {
     if (!loaded) return;
     setError('');
+    const mySession = ++sessionRef.current;
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         video:{width:640,height:480,facingMode:'user'}
       });
-      if (!videoRef.current) return;
+      // stopCamera() ya corrió (se salió de Práctica, etc.) mientras
+      // esperábamos el permiso de cámara: soltar el stream y salir.
+      if (sessionRef.current !== mySession || !videoRef.current) {
+        stream.getTracks().forEach(t=>t.stop());
+        return;
+      }
       videoRef.current.srcObject = stream;
       videoRef.current.play();
 
@@ -147,6 +157,12 @@ export function PracticeView() {
         v.onloadeddata = check;
         requestAnimationFrame(check);
       });
+
+      if (sessionRef.current !== mySession) {
+        stream.getTracks().forEach(t=>t.stop());
+        if (videoRef.current?.srcObject === stream) videoRef.current.srcObject = null;
+        return;
+      }
 
       handsRef.current = new window.Hands({
         locateFile: (f:string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
@@ -176,25 +192,42 @@ export function PracticeView() {
         ctx.restore();
       });
 
+      if (sessionRef.current !== mySession) {
+        // Se canceló mientras se inicializaba MediaPipe: no arrancar el loop.
+        stream.getTracks().forEach(t=>t.stop());
+        if (videoRef.current?.srcObject === stream) videoRef.current.srcObject = null;
+        handsRef.current = null;
+        return;
+      }
+
       setRunning(true);
       const loop=async()=>{
+        // Se revisa en cada frame: si stopCamera() invalidó esta sesión, el
+        // loop se corta aquí en vez de seguir encadenando requestAnimationFrame.
+        if (sessionRef.current !== mySession) return;
         if (videoRef.current && handsRef.current && videoRef.current.videoWidth>0) {
           await handsRef.current.send({image:videoRef.current});
         }
-        rafRef.current=requestAnimationFrame(loop);
+        if (sessionRef.current === mySession) {
+          rafRef.current=requestAnimationFrame(loop);
+        }
       };
       rafRef.current=requestAnimationFrame(loop);
     } catch {
+      if (stream) stream.getTracks().forEach(t=>t.stop());
       setError('No se pudo acceder a la cámara. Verifica los permisos del navegador.');
     }
   }, [loaded, classifyRemote]);
 
   const stopCamera = useCallback(() => {
+    sessionRef.current += 1; // invalida cualquier startCamera() en vuelo
     cancelAnimationFrame(rafRef.current);
+    rafRef.current = 0;
     if (videoRef.current?.srcObject) {
       (videoRef.current.srcObject as MediaStream).getTracks().forEach(t=>t.stop());
       videoRef.current.srcObject=null;
     }
+    handsRef.current = null;
     setRunning(false); setResult(null); setMlDown(false);
     latestLmRef.current = null;
   }, []);

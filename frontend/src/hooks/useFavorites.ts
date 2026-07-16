@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getFavorites, toggleFavorite } from '../lib/firestore';
+import { getFavorites, toggleFavorite } from '../lib/database';
 
 export function useFavorites(uid: string | undefined) {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());

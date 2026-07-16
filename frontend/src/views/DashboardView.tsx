@@ -12,10 +12,12 @@ interface Props {
 }
 
 export function DashboardView({ user, nav, getForLesson, globalProgress }: Props) {
-  const [lessons, setLessons] = useState<LessonFromAPI[]>([]);
+  const [lessons,   setLessons]   = useState<LessonFromAPI[]>([]);
+  const [signCount, setSignCount] = useState<number | null>(null);
 
   useEffect(() => {
     api.lessons.getAll().then(setLessons).catch(()=>{});
+    api.dictionary.getAll().then(list => setSignCount(list.length)).catch(()=>setSignCount(null));
   }, []);
 
   const completedCount = lessons.filter(l => getForLesson(l.id).completed).length;
@@ -74,7 +76,7 @@ export function DashboardView({ user, nav, getForLesson, globalProgress }: Props
       <div>
         <div style={{ fontWeight:700,fontSize:14,marginBottom:12 }}>Acceso rápido</div>
         <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
-          {[{icon:'📖',label:'Diccionario',sub:`${lessons.length ? '35' : '—'} señas`,v:'dictionary' as AppView},
+          {[{icon:'📖',label:'Diccionario',sub:`${signCount ?? '—'} señas`,v:'dictionary' as AppView},
             {icon:'🎓',label:'Lecciones',sub:`${lessons.length} módulos`,v:'lessons' as AppView}].map(({icon,label,sub,v})=>(
             <div key={v} className="glass" style={{ padding:16,cursor:'pointer',textAlign:'center' }} onClick={()=>nav(v)}>
               <div style={{ fontSize:24,marginBottom:7 }}>{icon}</div>

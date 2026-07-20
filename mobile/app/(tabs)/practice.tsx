@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { ML_URL } from '../../src/lib/config';
@@ -35,13 +36,45 @@ export default function PracticeScreen() {
   const [result, setResult] = useState<RecognizeResponse | null>(null);
   const [net, setNet] = useState<NetState>('ok');
   const [running, setRunning] = useState(true);
+  // Arranca sin foco: no se monta <CameraView/> hasta confirmar por
+  // useFocusEffect que el tab de Práctica está enfocado de verdad.
+  const [focused, setFocused] = useState(false);
 
   // evita solapar peticiones si una tarda más que el intervalo
   const busyRef = useRef(false);
   const cameraReadyRef = useRef(false);
+  // Token de sesión — mismo patrón que src/components/SignPractice.tsx y que
+  // el sessionRef de la web (LessonDetailView/PracticeView): invalida
+  // cualquier foto/respuesta en vuelo que resuelva después de perder el foco.
+  const sessionRef = useRef(0);
+
+  // Ciclo de vida por FOCO de pantalla, no solo desmontaje. Esta pantalla es
+  // un tab: al cambiar a otro tab con la navegación por tabs de expo-router,
+  // el componente sigue MONTADO (solo pierde el foco), así que un cleanup de
+  // useEffect al desmontar nunca se dispara y la cámara se queda encendida
+  // (el punto verde de iOS no se apaga). useFocusEffect sí detecta la
+  // pérdida de foco: aquí se invalida la sesión y se apaga `focused`, lo que
+  // desmonta <CameraView/> más abajo y libera la cámara de verdad. Al volver
+  // a este tab se reinicia el estado para que la cámara arranque limpia.
+  useFocusEffect(
+    useCallback(() => {
+      sessionRef.current += 1;
+      cameraReadyRef.current = false;
+      busyRef.current = false;
+      setResult(null);
+      setNet('ok');
+      setFocused(true);
+      return () => {
+        sessionRef.current += 1;
+        cameraReadyRef.current = false;
+        busyRef.current = false;
+        setFocused(false);
+      };
+    }, [])
+  );
 
   useEffect(() => {
-    if (!permission?.granted || !running) return;
+    if (!permission?.granted || !running || !focused) return;
 
     const id = setInterval(() => {
       captureAndRecognize();
@@ -49,10 +82,11 @@ export default function PracticeScreen() {
 
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [permission?.granted, running]);
+  }, [permission?.granted, running, focused]);
 
   async function captureAndRecognize() {
     if (busyRef.current || !cameraReadyRef.current || !cameraRef.current) return;
+    const mySession = sessionRef.current;
     busyRef.current = true;
 
     try {
@@ -62,7 +96,10 @@ export default function PracticeScreen() {
         skipProcessing: true,
         shutterSound: false,
       });
-      if (!photo?.uri) return;
+      // Se perdió el foco (cambio de tab) mientras se tomaba la foto:
+      // descartar en vez de seguir procesando sobre una cámara que ya se
+      // está desmontando.
+      if (sessionRef.current !== mySession || !photo?.uri) return;
 
       // 2. Reduce a ~480px de ancho + JPEG calidad 0.6 -> base64
       const ctx = ImageManipulator.manipulate(photo.uri);
@@ -73,7 +110,7 @@ export default function PracticeScreen() {
         format: SaveFormat.JPEG,
         base64: true,
       });
-      if (!saved.base64) return;
+      if (sessionRef.current !== mySession || !saved.base64) return;
 
       // 3. POST base64 puro (sin prefijo data URI) al endpoint
       const controller = new AbortController();
@@ -90,11 +127,14 @@ export default function PracticeScreen() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data: RecognizeResponse = await res.json();
+      // Respuesta tardía tras cambiar de tab: no tocar el estado de una
+      // pantalla que ya no está en foco.
+      if (sessionRef.current !== mySession) return;
       setNet('ok');
       setResult(data);
-    } catch (e) {
+    } catch {
       // Cualquier fallo de red / timeout / server caído
-      setNet('error');
+      if (sessionRef.current === mySession) setNet('error');
     } finally {
       busyRef.current = false;
     }
@@ -122,6 +162,13 @@ export default function PracticeScreen() {
         </Pressable>
       </View>
     );
+  }
+
+  // ── Sin foco (se cambió de tab, pero la pantalla sigue montada) ─────
+  // NO se renderiza <CameraView/>: se libera la cámara de verdad en vez de
+  // solo pausar el intervalo de captura (que ya está detenido arriba).
+  if (!focused) {
+    return <View style={styles.container} />;
   }
 
   // ── Estado principal: preview + overlay de resultado ────────

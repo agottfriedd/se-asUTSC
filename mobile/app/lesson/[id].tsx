@@ -1,17 +1,46 @@
-import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { api, type LessonFromAPI } from '../../src/lib/api';
-import { useAuth } from '../../src/hooks/useAuth';
 import { useProgress } from '../../src/hooks/useProgress';
 import { colors, radius, spacing } from '../../src/theme';
 import { glassStyle, PBar, Tag, LoadingView, ErrorBanner } from '../../src/components/UI';
 import { SignPractice } from '../../src/components/SignPractice';
+import { SIGN_IMAGES } from '../../src/lib/signImages';
 import type { ContentBlock } from '../../src/types';
 
 // Flujo didáctico portado de frontend/src/views/LessonDetailView.tsx.
 // La calibración del reconocimiento (intervalo, frames estables, gate de
 // confianza) vive en src/components/SignPractice.tsx.
+
+// ── Fallback de práctica (mini-quiz visual) ──────────────────────────
+// Portado de LessonDetailView.tsx (web). Si tras este tiempo el usuario no
+// logra la seña con la cámara —o si el ml-service está caído— se le ofrece una
+// ruta alternativa (identificar la seña entre 4 imágenes) para no atascarse.
+const FALLBACK_TIMEOUT_S = 60;
+
+// Pool de distractores: solo letras con imagen (las claves de SIGN_IMAGES),
+// así ninguna opción cae al fallback de texto que delataría cuáles son de
+// relleno.
+const SIGN_POOL = Object.keys(SIGN_IMAGES);
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// 4 opciones: la letra objetivo + 3 distractoras aleatorias, barajadas.
+function buildQuizOptions(target: string): string[] {
+  const distractors = shuffle(SIGN_POOL.filter(l => l !== target)).slice(0, 3);
+  return shuffle([target, ...distractors]);
+}
+
+// Segundos → "m:ss"
+const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 // La ruta raíz oculta el header; esta pantalla vive fuera de (tabs) y lo
 // reactiva para tener botón de volver.
@@ -26,8 +55,7 @@ const screenOptions = (title: string) => ({
 export default function LessonDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useAuth();
-  const { saveProgress } = useProgress(user.uid);
+  const { saveProgress } = useProgress();
 
   const [lesson,  setLesson]  = useState<LessonFromAPI | null>(null);
   const [content, setContent] = useState<ContentBlock[]>([]);
@@ -38,6 +66,16 @@ export default function LessonDetailScreen() {
   const [quizAns,      setQuizAns]      = useState<number | null>(null);
   const [signUnlocked, setSignUnlocked] = useState(false);
   const [done,         setDone]         = useState(false);
+
+  // ── Fallback (mini-quiz visual) ─────────────────────────────────
+  const [countdown,    setCountdown]    = useState(FALLBACK_TIMEOUT_S);
+  const [mlDown,       setMlDown]       = useState(false);   // reportado por SignPractice
+  const [quizOpen,     setQuizOpen]     = useState(false);
+  const [quizOptions,  setQuizOptions]  = useState<string[]>([]);
+  const [wrongPick,    setWrongPick]    = useState<string | null>(null);
+  // Foco de la pantalla: gatea el temporizador (respeta M2 — al perder el foco
+  // se para el timer, igual que la cámara).
+  const [focused,      setFocused]      = useState(true);
 
   useEffect(() => {
     if (!id) return;
@@ -58,14 +96,70 @@ export default function LessonDetailScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, content.length]);
 
-  // Reset de estado por bloque (quiz y seña)
+  // Reset de estado por bloque (quiz, seña y fallback). El temporizador
+  // vuelve a 60s aquí; el intervalo lo arranca el efecto de abajo.
   useEffect(() => {
     setQuizAns(null);
     setSignUnlocked(false);
+    setCountdown(FALLBACK_TIMEOUT_S);
+    setMlDown(false);
+    setQuizOpen(false);
+    setQuizOptions([]);
+    setWrongPick(null);
   }, [step]);
 
   const total = content.length;
   const block = !done && total > 0 && step < total ? content[step] : null;
+  const isSign = block?.type === 'sign';
+
+  // Foco de pantalla — para el temporizador al salir/perder foco (M2).
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, [])
+  );
+
+  // ── Temporizador del fallback ────────────────────────────────────
+  // Cuenta regresiva mientras se está en un bloque de seña sin desbloquear y
+  // con la pantalla enfocada. Se reinicia al cambiar de bloque (efecto de
+  // arriba), se cancela al desbloquear (deja de cumplirse la condición), al
+  // perder el foco y en el cleanup (no fuga el interval).
+  useEffect(() => {
+    if (!isSign || signUnlocked || !focused) return;
+    const id = setInterval(() => {
+      setCountdown(c => (c <= 1 ? 0 : c - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isSign, signUnlocked, focused, step]);
+
+  // El fallback se ofrece si, en un bloque de seña sin desbloquear, se agotó el
+  // minuto O el ml-service está caído (para no atascarse). Con la seña ya
+  // lograda nunca aparece.
+  const fallbackOffered = !!isSign && !signUnlocked && (countdown === 0 || mlDown);
+
+  const openFallbackQuiz = useCallback((target: string) => {
+    setQuizOptions(buildQuizOptions(target));
+    setWrongPick(null);
+    setQuizOpen(true);
+  }, []);
+
+  const answerFallbackQuiz = useCallback((picked: string, target: string) => {
+    if (wrongPick) return; // ya falló esta ronda; espera "otra combinación"
+    if (picked === target) {
+      // Mismo desbloqueo que lograr la seña con la cámara.
+      setSignUnlocked(true);
+      setQuizOpen(false);
+      setWrongPick(null);
+    } else {
+      setWrongPick(picked);
+    }
+  }, [wrongPick]);
+
+  const retryFallbackQuiz = useCallback((target: string) => {
+    setQuizOptions(buildQuizOptions(target));
+    setWrongPick(null);
+  }, []);
 
   const advance = () => {
     if (step < total - 1) {
@@ -134,7 +228,7 @@ export default function LessonDetailScreen() {
   }
 
   // ── Navegación inferior ──────────────────────────────────────────
-  const isSign = block.type === 'sign';
+  // isSign ya está declarado arriba (para el temporizador del fallback).
   const isQuiz = block.type === 'quiz';
   const nextDisabled = (isQuiz && quizAns === null) || (isSign && !signUnlocked);
   const nextLabel = isSign && !signUnlocked
@@ -243,31 +337,119 @@ export default function LessonDetailScreen() {
 
           {block.type === 'sign' && (
             <View style={{ gap: spacing.md }}>
+              {/* Header: miniatura de referencia (con blur durante el quiz) +
+                  letra objetivo + nombre + descripción. */}
               <View style={styles.signHeader}>
-                <Text style={styles.signLetterBig}>{block.letter}</Text>
+                {SIGN_IMAGES[block.letter] ? (
+                  <Image
+                    source={SIGN_IMAGES[block.letter]}
+                    style={styles.signThumb}
+                    resizeMode="contain"
+                    // Durante el quiz se difumina: da una pista tenue sin
+                    // delatar cuál de las 4 imágenes es la respuesta.
+                    blurRadius={quizOpen ? 14 : 0}
+                  />
+                ) : (
+                  <Text style={styles.signLetterBig}>{block.letter}</Text>
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.signName}>{block.name}</Text>
                   <Text style={styles.signDesc}>{block.description}</Text>
                 </View>
               </View>
+
               {block.tip ? (
                 <View style={styles.signTipBox}>
                   <Text style={styles.signTipText}>💡 {block.tip}</Text>
                 </View>
               ) : null}
 
-              {/* key={step}: remonta la cámara y resetea el contador por bloque */}
-              <SignPractice
-                key={step}
-                letter={block.letter}
-                unlocked={signUnlocked}
-                onUnlocked={() => setSignUnlocked(true)}
-              />
+              {signUnlocked ? (
+                // Desbloqueada (por cámara o por el quiz): tarjeta de éxito con
+                // la cámara APAGADA — no re-montamos <CameraView/> solo para
+                // mostrar un banner estático (respeta el objetivo de M2).
+                <View style={styles.signDoneCard}>
+                  <Text style={styles.signDoneText}>✅ ¡Seña correcta! Toca Continuar</Text>
+                </View>
+              ) : quizOpen ? (
+                // ── Mini-quiz visual: cámara y referencia grande OCULTAS,
+                //    el quiz es el único foco (2x2 grande). ──
+                <View style={styles.quizCard}>
+                  <Text style={styles.quizTitle}>
+                    🧩 ¿Cuál es la seña de la letra{' '}
+                    <Text style={styles.quizTitleLetter}>{block.letter}</Text>?
+                  </Text>
+                  <Text style={styles.quizSub}>Toca la imagen que corresponde a la seña.</Text>
 
-              {!signUnlocked && (
-                <Text style={styles.signHint}>
-                  Imita la seña de referencia y mantenla estable frente a la cámara
-                </Text>
+                  <View style={styles.quizGrid}>
+                    {quizOptions.map(l => {
+                      const isWrong  = wrongPick === l;
+                      const answered = wrongPick !== null;
+                      return (
+                        <Pressable
+                          key={l}
+                          disabled={answered}
+                          onPress={() => answerFallbackQuiz(l, block.letter)}
+                          style={[
+                            styles.quizTile,
+                            isWrong && { borderColor: colors.red },
+                            answered && !isWrong && { opacity: 0.45 },
+                          ]}
+                        >
+                          {SIGN_IMAGES[l] ? (
+                            <Image source={SIGN_IMAGES[l]} style={styles.quizTileImg} resizeMode="contain" />
+                          ) : (
+                            <Text style={styles.quizTileLetter}>{l}</Text>
+                          )}
+                          {isWrong && <Text style={styles.quizTileX}>❌</Text>}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+
+                  {wrongPick !== null && (
+                    <View style={styles.quizWrongBox}>
+                      <Text style={styles.quizWrongText}>
+                        ❌ Esa no era. La seña {block.letter} es otra — inténtalo con una combinación nueva.
+                      </Text>
+                      <Pressable style={styles.retryBtn} onPress={() => retryFallbackQuiz(block.letter)}>
+                        <Text style={styles.retryBtnText}>🔄 Otra combinación</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                // ── Flujo normal con cámara ──
+                <>
+                  {countdown > 0 && (
+                    <View style={styles.countdownRow}>
+                      <View style={[styles.countdownPill, countdown <= 10 && styles.countdownPillWarn]}>
+                        <Text style={[styles.countdownText, countdown <= 10 && { color: colors.amber }]}>
+                          ⏱ {fmtTime(countdown)}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* key={step}: remonta la cámara y resetea el contador por bloque */}
+                  <SignPractice
+                    key={step}
+                    letter={block.letter}
+                    unlocked={signUnlocked}
+                    onUnlocked={() => setSignUnlocked(true)}
+                    onMlDownChange={setMlDown}
+                  />
+
+                  {fallbackOffered && (
+                    <Pressable style={styles.fallbackBtn} onPress={() => openFallbackQuiz(block.letter)}>
+                      <Text style={styles.fallbackBtnText}>🧩 ¿Se te complica? Practica de otra forma</Text>
+                    </Pressable>
+                  )}
+
+                  <Text style={styles.signHint}>
+                    Imita la seña de referencia y mantenla estable frente a la cámara
+                  </Text>
+                </>
               )}
             </View>
           )}
@@ -355,6 +537,14 @@ const styles = StyleSheet.create({
   // Sign
   signHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.lg },
   signLetterBig: { fontSize: 40, fontWeight: '900', color: colors.teal, lineHeight: 44 },
+  signThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: colors.teal,
+    backgroundColor: colors.text1,
+  },
   signName: { fontWeight: '700', fontSize: 17, color: colors.text1, marginBottom: 4 },
   signDesc: { fontSize: 13, color: colors.text2, lineHeight: 19 },
   signTipBox: {
@@ -365,6 +555,88 @@ const styles = StyleSheet.create({
   },
   signTipText: { fontSize: 12, color: colors.teal, lineHeight: 17 },
   signHint: { fontSize: 12.5, color: colors.text3, textAlign: 'center', lineHeight: 18 },
+
+  // Éxito (desbloqueo por cámara o por quiz) — cámara ya apagada
+  signDoneCard: {
+    backgroundColor: colors.greenBg,
+    borderWidth: 1,
+    borderColor: colors.green,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
+  },
+  signDoneText: { fontSize: 15, fontWeight: '800', color: colors.green },
+
+  // Cuenta regresiva del fallback (discreta pero visible)
+  countdownRow: { flexDirection: 'row', justifyContent: 'flex-end' },
+  countdownPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg3,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+  },
+  countdownPillWarn: { borderColor: colors.amber },
+  countdownText: { fontSize: 12, fontWeight: '700', color: colors.text3, fontVariant: ['tabular-nums'] },
+
+  // Botón que ofrece el fallback
+  fallbackBtn: {
+    backgroundColor: colors.violet,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  fallbackBtnText: { color: colors.bg, fontWeight: '700', fontSize: 13.5 },
+
+  // Mini-quiz visual (2x2 de imágenes grandes)
+  quizCard: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.violetBorder,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  quizTitle: { fontSize: 16, fontWeight: '700', color: colors.text1, textAlign: 'center', lineHeight: 22 },
+  quizTitleLetter: { color: colors.violet, fontWeight: '900' },
+  quizSub: { fontSize: 12.5, color: colors.text3, textAlign: 'center' },
+  quizGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, justifyContent: 'center' },
+  quizTile: {
+    flexBasis: '46%',
+    flexGrow: 1,
+    aspectRatio: 1,
+    borderRadius: radius.lg,
+    borderWidth: 3,
+    borderColor: colors.border2,
+    backgroundColor: colors.text1,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quizTileImg: { width: '100%', height: '100%' },
+  quizTileLetter: { fontSize: 56, fontWeight: '900', color: colors.teal },
+  quizTileX: { position: 'absolute', top: 6, right: 8, fontSize: 24 },
+  quizWrongBox: {
+    backgroundColor: colors.redBg,
+    borderWidth: 1,
+    borderColor: `${colors.red}4D`,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  quizWrongText: { fontSize: 13, color: colors.red, fontWeight: '600', lineHeight: 19 },
+  retryBtn: {
+    borderWidth: 1,
+    borderColor: colors.border2,
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  retryBtnText: { color: colors.text1, fontWeight: '600', fontSize: 13 },
 
   // Footer
   footer: {

@@ -2,6 +2,7 @@ import express         from 'express';
 import cors            from 'cors';
 import helmet          from 'helmet';
 import dotenv          from 'dotenv';
+import './lib/firebaseAdmin'; // inicializa el Admin SDK (default app); también carga .env
 import { lessonsRouter }    from './routes/lessons';
 import { dictionaryRouter } from './routes/dictionary';
 import { usersRouter }      from './routes/users';

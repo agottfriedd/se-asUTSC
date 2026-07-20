@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api, apiLevelToLabel, type LessonFromAPI } from '../../src/lib/api';
-import { useAuth } from '../../src/hooks/useAuth';
 import { useProgress } from '../../src/hooks/useProgress';
 import { colors, levelColors, radius, spacing } from '../../src/theme';
 import { glassStyle, PBar, Tag, LoadingView, ErrorBanner } from '../../src/components/UI';
@@ -17,31 +16,35 @@ type Section = { title: LessonLevel; showHeader: boolean; data: LessonFromAPI[] 
 
 export default function LessonsScreen() {
   const router = useRouter();
-  const { user } = useAuth();
-  const { getForLesson, loaded: progressLoaded } = useProgress(user.uid);
+  const { getForLesson, loaded: progressLoaded } = useProgress();
 
-  const [lessons, setLessons] = useState<LessonFromAPI[]>([]);
+  // Lecciones CRUDAS del backend (ordenadas). No se muta `locked` aquí; el
+  // desbloqueo se deriva en cada render desde el progreso compartido, así se
+  // recalcula al completar una lección sin quedar congelado.
+  const [rawLessons, setRawLessons] = useState<LessonFromAPI[]>([]);
   const [lessonsLoading, setLessonsLoading] = useState(true);
   const [error, setError]   = useState(false);
   const [tab, setTab]       = useState<typeof TABS[number]>('Todos');
 
   useEffect(() => {
-    if (!progressLoaded) return;
     api.lessons.getAll()
       .then(data => {
-        const sorted = [...data].sort((a, b) => a.order - b.order);
-        sorted.forEach((l, i) => {
-          l.locked = i === 0 ? false : !getForLesson(sorted[i - 1].id).completed;
-        });
-        setLessons(sorted);
+        setRawLessons([...data].sort((a, b) => a.order - b.order));
         setError(false);
       })
       .catch(() => setError(true))
       .finally(() => setLessonsLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [progressLoaded]);
+  }, []);
 
   if (lessonsLoading || !progressLoaded) return <LoadingView label="Cargando lecciones…" />;
+
+  // Desbloqueo dinámico: la 1ª siempre abierta; cada siguiente se abre cuando la
+  // anterior (por `order`) está completada. Derivado del progreso compartido, se
+  // recalcula en cada render (no muta los objetos del fetch).
+  const lessons: LessonFromAPI[] = rawLessons.map((l, i) => ({
+    ...l,
+    locked: i === 0 ? false : !getForLesson(rawLessons[i - 1].id).completed,
+  }));
 
   const levels = LEVELS.filter(l => tab === 'Todos' || l === tab);
   const sections: Section[] = levels

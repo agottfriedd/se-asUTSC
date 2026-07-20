@@ -1,4 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+/**
+ * Portado de frontend/src/hooks/useAuth.ts — Firebase Auth real.
+ *
+ * Diferencia de arquitectura con la web: en la web useAuth se llama UNA vez en
+ * <App/> y el user baja por props. En mobile las pantallas llaman useAuth() por
+ * su cuenta (const { user } = useAuth()). Para que todas vean el MISMO usuario
+ * (un solo listener onAuthStateChanged) y para poder cerrar el paso a las
+ * pantallas mientras no hay sesión, envolvemos todo en <AuthProvider> (montado
+ * en app/_layout.tsx). El provider NO renderiza los tabs hasta que hay sesión,
+ * así que dentro del árbol autenticado `user` es siempre no-null y las pantallas
+ * no se rompen con user.uid.
+ */
+import {
+  createContext, useCallback, useContext, useEffect, useState,
+  type ReactNode,
+} from 'react';
 import {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signOut, updateProfile,
@@ -8,6 +23,8 @@ import { auth } from '../lib/firebase';
 import { getUserProfile, createUserProfile } from '../lib/database';
 import type { StoredProfile } from '../lib/database';
 import type { UserProfile } from '../types';
+import { AuthScreen } from '../screens/AuthScreen';
+import { LoadingView } from '../components/UI';
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   'auth/invalid-email':          'El correo electrónico no es válido.',
@@ -43,12 +60,10 @@ function joinedLabel(iso: string | undefined): string {
 
 // Construye el UserProfile de la app SOLO leyendo: perfil de Realtime Database
 // (si existe) + datos de Firebase Auth como respaldo. NO crea el perfil aquí:
-// eso lo hace register() con el nombre real que tecleó el usuario. (Antes se
-// creaba aquí desde el listener de auth, que se dispara justo tras el alta
-// cuando displayName todavía es null → guardaba el prefijo del email como
-// nombre. Ese era el bug del "nombre autogenerado".)
-// Los campos derivados del progreso real (streak, progress, level) se
-// sobrescriben después en AppShell con datos de useProgress.
+// eso lo hace register() con el nombre real que tecleó el usuario. (Ver la nota
+// del bug "nombre autogenerado" en la web.) Los campos derivados del progreso
+// real (streak, badges, level) son placeholders — se derivan del progreso en
+// otro bloque; aquí quedan en 0 como en la web.
 async function buildUserProfile(fbUser: FirebaseUser): Promise<UserProfile> {
   let stored: StoredProfile | null = null;
   try {
@@ -75,47 +90,49 @@ async function buildUserProfile(fbUser: FirebaseUser): Promise<UserProfile> {
   };
 }
 
-export function useAuth() {
-  const [fbUser,  setFbUser]  = useState<FirebaseUser | null>(null);
+// ─── Contexto ──────────────────────────────────────────────────
+// Dentro del árbol autenticado user es siempre no-null (el provider no monta a
+// los hijos sin sesión), por eso lo tipamos no-nullable: las pantallas hacen
+// user.uid sin comprobaciones, igual que con el mock.
+interface AuthContextValue {
+  user:   UserProfile;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user,    setUser]    = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fu) => {
-      setFbUser(fu);
       setUser(fu ? await buildUserProfile(fu) : null);
       setLoading(false);
     });
     return unsubscribe;
   }, []);
 
+  // login/register lanzan el mensaje en español ya traducido; AuthScreen lo
+  // captura y lo muestra (mismo patrón que el AuthView web).
   const login = useCallback(async (email: string, pw: string) => {
-    setError(null);
     try {
       await signInWithEmailAndPassword(auth, email, pw);
     } catch (e) {
-      const msg = authErrorMessage(e);
-      setError(msg);
-      throw new Error(msg);
+      throw new Error(authErrorMessage(e));
     }
   }, []);
 
   const register = useCallback(async (name: string, email: string, pw: string) => {
-    setError(null);
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, pw);
       await updateProfile(cred.user, { displayName: name });
       // register es la ÚNICA fuente del nombre tecleado: crea el perfil con él
       // (rol inicial 'student'). Así no depende del timing del listener.
       try { await createUserProfile(cred.user.uid, { name, email }); } catch { /* RTDB no disp. */ }
-      // Refresca el usuario en memoria con el perfil ya correcto (el listener
-      // pudo haber puesto un nombre provisional).
       setUser(await buildUserProfile(cred.user));
     } catch (e) {
-      const msg = authErrorMessage(e);
-      setError(msg);
-      throw new Error(msg);
+      throw new Error(authErrorMessage(e));
     }
   }, []);
 
@@ -123,7 +140,29 @@ export function useAuth() {
     await signOut(auth);
   }, []);
 
-  const clearError = useCallback(() => setError(null), []);
+  // Sin sesión resuelta todavía → splash. Sin usuario → pantalla de auth. Con
+  // usuario → la app (tabs). Réplica del flujo de fases landing/auth/app de la
+  // web, sin landing (mobile arranca directo en auth).
+  if (loading) {
+    return <LoadingView label="Cargando…" />;
+  }
+  if (!user) {
+    return <AuthScreen onLogin={login} onRegister={register} />;
+  }
 
-  return { user, fbUser, loading, error, login, register, logout, clearError };
+  return (
+    <AuthContext.Provider value={{ user, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// Consumido por las pantallas dentro del árbol autenticado. Mismo contrato que
+// el mock ({ user }), más logout para el botón de Perfil.
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error('useAuth debe usarse dentro de <AuthProvider>.');
+  }
+  return ctx;
 }

@@ -8,38 +8,48 @@
  * hacía el prototipo original.
  */
 import { API_URL } from './config';
+import { auth } from './firebase';
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`);
-  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
-  return res.json();
+// Adjunta el ID token de Firebase (best-effort): si hay sesión, el backend
+// puede verificar al usuario y su rol. Sin esto, las rutas protegidas con
+// requireAuth (p.ej. GET /api/lessons/:id) responden 401 "No autenticado".
+// Si no hay sesión o falla getIdToken, se envía sin header y los endpoints
+// públicos siguen funcionando. Mismo patrón que frontend/src/lib/api.ts.
+async function authHeader(): Promise<Record<string, string>> {
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
+// Request unificado: adjunta el token y, si el servidor responde error, intenta
+// leer el mensaje en español del cuerpo ({ error }) antes de lanzar.
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const headers: Record<string, string> = { ...(await authHeader()) };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+
   const res = await fetch(`${API_URL}${path}`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
+  if (!res.ok) {
+    let message = `API error ${res.status}: ${path}`;
+    try {
+      const data = await res.json();
+      if (data?.error) message = data.error;
+    } catch { /* respuesta sin cuerpo JSON */ }
+    throw new Error(message);
+  }
   return res.json();
 }
 
-async function put<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    method:  'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
-  return res.json();
-}
-
-async function del<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
-  return res.json();
-}
+const get  = <T>(path: string)                => request<T>('GET',    path);
+const post = <T>(path: string, body: unknown) => request<T>('POST',   path, body);
+const put  = <T>(path: string, body: unknown) => request<T>('PUT',    path, body);
+const del  = <T>(path: string)                => request<T>('DELETE', path);
 
 // ─── Lessons ─────────────────────────────────────────────────
 export const api = {

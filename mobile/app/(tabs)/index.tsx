@@ -12,7 +12,7 @@ import { glassStyle, PBar, StatCard, LoadingView, ErrorBanner } from '../../src/
 export default function InicioScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { getForLesson, globalProgress, loaded: progressLoaded } = useProgress(user.uid);
+  const { getForLesson, globalProgress, loaded: progressLoaded } = useProgress();
 
   const [lessons, setLessons]         = useState<LessonFromAPI[]>([]);
   const [signCount, setSignCount]     = useState<number | null>(null);

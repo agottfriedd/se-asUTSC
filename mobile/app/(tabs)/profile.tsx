@@ -7,13 +7,13 @@ import { glassStyle, StatCard, Tag } from '../../src/components/UI';
 // Portado de frontend/src/views/ProfileView.tsx
 
 export default function ProfileScreen() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      'La autenticación con Firebase se integrará en un bloque posterior. Por ahora la app usa un usuario de prueba fijo.',
-    );
+    Alert.alert('Cerrar sesión', '¿Seguro que quieres cerrar sesión?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cerrar sesión', style: 'destructive', onPress: () => { void logout(); } },
+    ]);
   };
 
   return (

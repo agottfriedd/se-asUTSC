@@ -4,10 +4,15 @@ import type { UserRole } from '../types';
 
 // Perfil mínimo persistido en Realtime Database. Los campos derivados del
 // progreso real (streak, badges, etc.) NO se guardan aquí — ver useProgress.
+// El cliente solo puede escribir el rol INICIAL 'student' al registrarse; las
+// reglas de RTDB (.validate en /users/{uid}/role) impiden que después lo
+// cambie a admin o a cualquier otro valor. Promover/degradar solo lo hace el
+// backend con el Admin SDK (que ignora las reglas). Así nadie puede
+// auto-asignarse admin desde el navegador.
 export interface StoredProfile {
   name:  string;
   email: string;
-  role:  UserRole;
+  role?: UserRole;
 }
 
 // ─── USER PROFILE ──────────────────────────────────────────────
@@ -16,11 +21,14 @@ export async function getUserProfile(uid: string): Promise<StoredProfile | null>
   return snap.exists() ? (snap.val() as StoredProfile) : null;
 }
 
-export async function createUserProfile(uid: string, profile: StoredProfile): Promise<void> {
-  await set(ref(rtdb, `users/${uid}`), { ...profile, createdAt: Date.now() });
+// Crea el perfil con rol inicial 'student'. Las reglas solo permiten 'student'
+// como valor inicial; cualquier intento de crear con otro rol es rechazado.
+export async function createUserProfile(uid: string, profile: { name: string; email: string }): Promise<void> {
+  await set(ref(rtdb, `users/${uid}`), { ...profile, role: 'student', createdAt: Date.now() });
 }
 
-export async function updateUserProfile(uid: string, fields: Partial<StoredProfile>): Promise<void> {
+// Solo actualiza name/email — nunca role (lo administra el backend).
+export async function updateUserProfile(uid: string, fields: { name?: string; email?: string }): Promise<void> {
   await update(ref(rtdb, `users/${uid}`), fields);
 }
 

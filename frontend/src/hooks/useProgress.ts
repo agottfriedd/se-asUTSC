@@ -48,14 +48,28 @@ export function useProgress(uid: string | undefined) {
 
   const saveProgress = useCallback(async (lessonId: number, pct: number, completed: boolean) => {
     if (!uid) return;
-    const updated = { userId: uid, lessonId, progress: pct, completed };
-    setProgress(prev => ({ ...prev, [lessonId]: updated }));
+    // Nunca degradar localmente: el progreso solo avanza y `completed` solo pasa
+    // a true (mismo criterio que el blindaje del backend). Evita que reabrir una
+    // lección completada la muestre como 0%/incompleta por el guardado por-bloque
+    // (el efecto por-bloque arranca en step 0 y reenvía progress=0).
+    const merge = (cur: LessonProgress | undefined): LessonProgress => ({
+      userId:    uid,
+      lessonId,
+      progress:  Math.max(cur?.progress ?? 0, pct),
+      completed: (cur?.completed ?? false) || completed,
+    });
+    setProgress(prev => ({ ...prev, [lessonId]: merge(prev[lessonId]) }));
     // Guardar en backend Y localStorage como fallback
     try {
-      const saved = await api.progress.save(updated);
+      // El backend es la autoridad (aplica el no-downgrade); reflejamos su valor.
+      const saved = await api.progress.save({ userId: uid, lessonId, progress: pct, completed });
+      setProgress(prev => ({
+        ...prev,
+        [lessonId]: { userId: uid, lessonId, progress: saved.progress, completed: saved.completed },
+      }));
       if (saved.updatedAt) setUpdatedDates(prev => [...prev, saved.updatedAt as string]);
     } catch {
-      localStorage.setItem(`progress_${uid}`, JSON.stringify({ ...progress, [lessonId]: updated }));
+      localStorage.setItem(`progress_${uid}`, JSON.stringify({ ...progress, [lessonId]: merge(progress[lessonId]) }));
     }
   }, [uid, progress]);
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { DEBUG_RECOGNITION, ML_URL } from '../lib/config';
@@ -52,38 +53,84 @@ interface Props {
   /** El padre es dueño del estado de desbloqueo (habilita "Continuar"). */
   unlocked: boolean;
   onUnlocked: () => void;
+  /** Reporta al padre si el ml-service está caído, para que pueda ofrecer el
+   *  fallback (mini-quiz) de inmediato aunque no se agote el temporizador. */
+  onMlDownChange?: (down: boolean) => void;
 }
 
-export function SignPractice({ letter, unlocked, onUnlocked }: Props) {
+export function SignPractice({ letter, unlocked, onUnlocked, onMlDownChange }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const busyRef = useRef(false);
   const cameraReadyRef = useRef(false);
   const responseCountRef = useRef(0);
+  // Token de sesión — equivalente RN del sessionRef de la web
+  // (LessonDetailView/PracticeView). Cada vez que la pantalla pierde el foco
+  // o el componente se desmonta se incrementa; captureAndRecognize() lo
+  // comprueba tras cada await y descarta el resultado si ya no coincide, en
+  // vez de aplicar un permiso/foto/respuesta que llegó tarde sobre una
+  // cámara que ya debería estar apagada.
+  const sessionRef = useRef(0);
 
   const [last, setLast]               = useState<RecognizeResponse | null>(null);
   const [mlDown, setMlDown]           = useState(false);
   const [stableCount, setStableCount] = useState(0);
   const [refExpanded, setRefExpanded] = useState(false);
   const [debug, setDebug]             = useState(DEBUG_RECOGNITION);
+  // Arranca sin foco: no se monta <CameraView/> hasta que useFocusEffect
+  // confirme que la pantalla está enfocada de verdad.
+  const [focused, setFocused] = useState(false);
 
   // Desbloqueo al llegar al umbral (como efecto, no dentro del setState)
   useEffect(() => {
     if (!unlocked && stableCount >= STABLE_NEEDED) onUnlocked();
   }, [stableCount, unlocked, onUnlocked]);
 
-  // Loop de captura. Se detiene al desbloquear (la seña ya se validó:
-  // seguir clasificando sería batería y red desperdiciadas) y al desmontar
-  // (cambio de bloque o salida de la pantalla).
+  // Espeja mlDown hacia el padre (que decide si ofrece el fallback).
   useEffect(() => {
-    if (!permission?.granted || unlocked) return;
+    onMlDownChange?.(mlDown);
+  }, [mlDown, onMlDownChange]);
+
+  // Ciclo de vida por foco de pantalla — NO solo desmontaje. Con navegación
+  // por tabs el componente puede seguir montado sin estar visible (p.ej. el
+  // usuario cambia de tab); ahí "unmount" nunca dispara y la cámara seguiría
+  // corriendo. Al perder el foco (o desmontar — la limpieza de
+  // useFocusEffect corre en ambos casos) se invalida la sesión y se apaga el
+  // flag `focused`, lo que desmonta <CameraView/> más abajo y libera la
+  // cámara de verdad. Al recuperar el foco se reinicia todo el estado de
+  // detección para que la cámara arranque limpia.
+  useFocusEffect(
+    useCallback(() => {
+      sessionRef.current += 1;
+      cameraReadyRef.current = false;
+      busyRef.current = false;
+      responseCountRef.current = 0;
+      setLast(null);
+      setMlDown(false);
+      setStableCount(0);
+      setFocused(true);
+      return () => {
+        sessionRef.current += 1;
+        cameraReadyRef.current = false;
+        busyRef.current = false;
+        setFocused(false);
+      };
+    }, [])
+  );
+
+  // Loop de captura. Se detiene al desbloquear (la seña ya se validó:
+  // seguir clasificando sería batería y red desperdiciadas), al perder el
+  // foco y al desmontar (cambio de bloque o salida de la pantalla).
+  useEffect(() => {
+    if (!permission?.granted || unlocked || !focused) return;
     const id = setInterval(captureAndRecognize, CAPTURE_INTERVAL_MS);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [permission?.granted, unlocked]);
+  }, [permission?.granted, unlocked, focused]);
 
   async function captureAndRecognize() {
     if (busyRef.current || !cameraReadyRef.current || !cameraRef.current) return;
+    const mySession = sessionRef.current;
     busyRef.current = true;
     try {
       const photo = await cameraRef.current.takePictureAsync({
@@ -91,7 +138,9 @@ export function SignPractice({ letter, unlocked, onUnlocked }: Props) {
         skipProcessing: true,
         shutterSound: false,
       });
-      if (!photo?.uri) return;
+      // Se perdió el foco mientras se tomaba la foto: descartar en vez de
+      // seguir procesando sobre una cámara que ya se está desmontando.
+      if (sessionRef.current !== mySession || !photo?.uri) return;
 
       const ctx = ImageManipulator.manipulate(photo.uri);
       ctx.resize({ width: FRAME_WIDTH });
@@ -101,7 +150,7 @@ export function SignPractice({ letter, unlocked, onUnlocked }: Props) {
         format: SaveFormat.JPEG,
         base64: true,
       });
-      if (!saved.base64) return;
+      if (sessionRef.current !== mySession || !saved.base64) return;
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -115,6 +164,9 @@ export function SignPractice({ letter, unlocked, onUnlocked }: Props) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data: RecognizeResponse = await res.json();
+      // Respuesta tardía tras salir de la pantalla: no tocar el estado (ni
+      // desbloquear la seña) de un componente que ya no está en foco.
+      if (sessionRef.current !== mySession) return;
       responseCountRef.current += 1;
       setMlDown(false);
       setLast(data);
@@ -128,7 +180,7 @@ export function SignPractice({ letter, unlocked, onUnlocked }: Props) {
       }
       // sin mano / '?' / baja confianza: no suma, no resetea
     } catch {
-      setMlDown(true);
+      if (sessionRef.current === mySession) setMlDown(true);
     } finally {
       busyRef.current = false;
     }
@@ -154,6 +206,13 @@ export function SignPractice({ letter, unlocked, onUnlocked }: Props) {
         </Pressable>
       </View>
     );
+  }
+
+  // Sin foco (se salió de la pantalla o se cambió de tab, pero el componente
+  // sigue montado): NO se renderiza <CameraView/>, así se libera la cámara
+  // de verdad en vez de solo pausar el intervalo de captura.
+  if (!focused) {
+    return <View style={[styles.cameraBox, { borderColor: colors.border }]} />;
   }
 
   const refImage = SIGN_IMAGES[letter] ?? null;

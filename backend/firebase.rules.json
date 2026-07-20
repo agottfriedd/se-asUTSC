@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "users": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && auth.uid === $uid",
+        "role": {
+          ".validate": "(newData.val() === 'student' && !data.exists()) || newData.val() === data.val()"
+        }
+      }
+    },
+    "favorites": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}

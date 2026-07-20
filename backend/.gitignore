@@ -1,0 +1,13 @@
+# Variables de entorno (contienen la private key del Firebase Admin SDK)
+.env
+.env.local
+.env.*.local
+
+# Service account key de Firebase — NUNCA commitear
+*serviceAccount*.json
+serviceAccountKey.json
+firebase-adminsdk*.json
+
+# Build
+dist/
+node_modules/

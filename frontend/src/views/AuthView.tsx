@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import {
-  checkPassword, passwordStrength, passwordError, allChecksPassed,
-  REQUIREMENT_ITEMS,
-} from '../lib/passwordPolicy';
-import type { PasswordStrength } from '../lib/passwordPolicy';
+import { checkPassword, passwordError, allChecksPassed } from '../lib/passwordPolicy';
+import { emailError } from '../lib/emailValidation';
+import { PasswordStrengthMeter } from '../components/PasswordStrengthMeter';
 
 interface Props {
   mode:           'login' | 'register';
@@ -12,16 +10,6 @@ interface Props {
   onBack:         () => void;
   onSwitchMode:   (m: 'login' | 'register') => void;
 }
-
-const STRENGTH_LABEL: Record<PasswordStrength, string> = {
-  weak: 'Débil', medium: 'Media', strong: 'Fuerte',
-};
-const STRENGTH_COLOR: Record<PasswordStrength, string> = {
-  weak: 'var(--red)', medium: 'var(--amb)', strong: 'var(--grn)',
-};
-const STRENGTH_BARS: Record<PasswordStrength, number> = {
-  weak: 1, medium: 2, strong: 3,
-};
 
 export function AuthView({ mode, onLogin, onRegister, onBack, onSwitchMode }: Props) {
   const [isLogin,    setIsLogin]    = useState(mode === 'login');
@@ -41,7 +29,6 @@ export function AuthView({ mode, onLogin, onRegister, onBack, onSwitchMode }: Pr
   };
 
   const pwChecks    = checkPassword(pw);
-  const strength    = passwordStrength(pw);
   const confirmOk   = confirmPw.length > 0 && confirmPw === pw;
   const confirmBad  = confirmPw.length > 0 && confirmPw !== pw;
   // Todos los requisitos son obligatorios y bloqueantes: sin esto no se
@@ -53,6 +40,9 @@ export function AuthView({ mode, onLogin, onRegister, onBack, onSwitchMode }: Pr
     if (!email || !pw) { setErr('Completa todos los campos.'); return; }
     if (!isLogin) {
       if (!name) { setErr('Ingresa tu nombre completo.'); return; }
+      // Formato de email antes de llamar a Firebase (mejor mensaje que el genérico).
+      const eErr = emailError(email);
+      if (eErr) { setErr(eErr); return; }
       // Validación de cliente — más estricta que el mínimo de 6 de Firebase
       // Auth. Debe correr ANTES de llamar a Firebase.
       const pwErr = passwordError(pw);
@@ -117,36 +107,7 @@ export function AuthView({ mode, onLogin, onRegister, onBack, onSwitchMode }: Pr
               </div>
 
               {/* Medidor de fortaleza + requisitos — solo en registro */}
-              {!isLogin && (
-                <div style={{ marginTop:9 }}>
-                  <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:8 }}>
-                    <div style={{ flex:1,display:'flex',gap:4 }}>
-                      {[0,1,2].map(i => (
-                        <div key={i} style={{ flex:1,height:4,borderRadius:2,background:pw.length>0&&i<STRENGTH_BARS[strength]?STRENGTH_COLOR[strength]:'var(--bdr)',transition:'background .2s' }}/>
-                      ))}
-                    </div>
-                    {pw.length > 0 && (
-                      <span style={{ fontSize:11,fontWeight:700,color:STRENGTH_COLOR[strength],minWidth:38,textAlign:'right' }}>
-                        {STRENGTH_LABEL[strength]}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display:'flex',flexDirection:'column',gap:4 }}>
-                    {REQUIREMENT_ITEMS.map(({ key, label }) => {
-                      const met = pwChecks[key];
-                      const violated = key === 'notCommon' && pw.length > 0 && !met;
-                      const satisfied = met && pw.length > 0;
-                      const color = violated ? 'var(--red)' : satisfied ? 'var(--grn)' : 'var(--t3)';
-                      const icon  = violated ? '❌' : satisfied ? '✅' : '⭕';
-                      return (
-                        <div key={key} style={{ display:'flex',alignItems:'center',gap:6,fontSize:11.5,color }}>
-                          <span>{icon}</span>{label}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              {!isLogin && <PasswordStrengthMeter pw={pw} />}
             </div>
 
             {!isLogin && (
@@ -176,6 +137,11 @@ export function AuthView({ mode, onLogin, onRegister, onBack, onSwitchMode }: Pr
               onClick={handleSubmit} disabled={loading || (!isLogin && !canRegister)}>
               {loading ? 'Procesando…' : isLogin ? 'Iniciar sesión' : 'Crear cuenta'}
             </button>
+            {/* Recuperar contraseña — DESHABILITADO por ahora (hoy solo era un
+                alert placeholder). Se retomará con el flujo de recuperación de
+                Firebase (auth.sendPasswordResetEmail), que ya viene resuelto en
+                el SDK; faltaría la UI para pedir el correo y mostrar el aviso de
+                "revisa tu bandeja". No se renderiza para no dejar un botón inútil.
             {isLogin && (
               <div style={{ textAlign:'center' }}>
                 <button style={{ background:'none',border:'none',color:'var(--t3)',fontSize:12,cursor:'pointer',textDecoration:'underline',fontFamily:'inherit' }}
@@ -184,6 +150,7 @@ export function AuthView({ mode, onLogin, onRegister, onBack, onSwitchMode }: Pr
                 </button>
               </div>
             )}
+            */}
           </div>
         </div>
       </div>

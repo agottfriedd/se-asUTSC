@@ -2,6 +2,7 @@ import { Router }             from 'express';
 import { admin }              from '../lib/firebaseAdmin';
 import { requireAdmin }       from '../middleware/auth';
 import type { AuthRequest }   from '../middleware/auth';
+import { passwordError, emailError } from '../lib/validation';
 
 export const usersRouter = Router();
 
@@ -59,9 +60,12 @@ usersRouter.post('/', requireAdmin, async (req, res) => {
   if (!email || !password || !name) {
     return res.status(400).json({ error: 'Correo, contraseña y nombre son obligatorios.' });
   }
-  if (password.length < 8) {
-    return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres.' });
-  }
+  // Barrera real: mismo formato de email y política de contraseña que la UI.
+  const eErr = emailError(email);
+  if (eErr) return res.status(400).json({ error: eErr });
+  const pErr = passwordError(password);
+  if (pErr) return res.status(400).json({ error: pErr });
+
   const finalRole: Role = role === 'admin' ? 'admin' : 'student';
   try {
     const user = await admin.auth().createUser({ email, password, displayName: name });
@@ -143,9 +147,12 @@ usersRouter.patch('/:uid/disabled', requireAdmin, async (req: AuthRequest, res) 
 usersRouter.patch('/:uid/password', requireAdmin, async (req, res) => {
   const { uid } = req.params;
   const { password } = req.body as { password?: string };
-  if (!password || password.length < 8) {
-    return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres.' });
+  if (!password) {
+    return res.status(400).json({ error: 'La contraseña es obligatoria.' });
   }
+  // Barrera real: misma política de contraseña que la UI (no solo 8 caracteres).
+  const pErr = passwordError(password);
+  if (pErr) return res.status(400).json({ error: pErr });
   try {
     await admin.auth().updateUser(uid, { password });
     res.json({ ok: true, uid });

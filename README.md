@@ -70,6 +70,26 @@ Browser (PWA)
 | ML Service   | Python + FastAPI + MediaPipe Hands            |
 | ML In-browser| MediaPipe Hands JS (WebAssembly)              |
 
-## Equipo
-Adrián Gottfried · Karolin Medina · Paola Moreno · Felipe Galván · Brandon González
+## Pendientes
+
+- **Recuperación de contraseña**: el enlace "¿Olvidaste tu contraseña?" está
+  comentado en `frontend/src/views/AuthView.tsx` (web); en móvil nunca existió.
+  Falta construir en **web y móvil**: una vista que pida el correo →
+  `sendPasswordResetEmail` → aviso "revisa tu bandeja", con errores en español
+  reutilizando el `AUTH_ERROR_MESSAGES` que ya existe en los `useAuth`.
+- **Lección "Decir No"** (`id=16`, `order=13`): quedó *soft-deleted*
+  (`active=false`), así que no aparece en la app. Decidir si se purga o se
+  restaura. Ojo: su único bloque es de tipo `sign` (no termina en `quiz`), así
+  que tal como está no se puede "completar" por el flujo normal si se reactiva.
+- **Contenido legacy sin migrar**: `frontend/src/data/content.ts` y
+  `frontend/src/data/lessons.ts` ya no se usan (las lecciones vienen del backend
+  /Postgres). Pendiente migrar al editor de lecciones / a la BD el contenido que
+  siga siendo útil (frases y señas adicionales) y luego borrar esos archivos.
+- **Stats de perfil sin calcular**: `badges` y `totalSigns` quedan en `0` en web
+  y móvil (no hay forma de calcularlos hoy). Además, el perfil **móvil** no
+  deriva `streak` ni el nivel del progreso real (el web sí). Falta calcular estas
+  métricas.
+
+## Autor
+Adrián Gottfried
 UTSC · Ingeniería en Desarrollo y Gestión de Software · 2026

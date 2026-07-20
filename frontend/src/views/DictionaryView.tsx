@@ -15,6 +15,8 @@ export function DictionaryView({ uid: _ }: Props) {
   const [cat,      setCat]      = useState('Todos');
   const [liked,    setLiked]    = useState<Record<string,boolean>>({});
   const [selected, setSelected] = useState<string|null>(null);
+  // Señas del abecedario cuya imagen falló al cargar → caen al texto (fallback).
+  const [imgError, setImgError] = useState<Record<string,boolean>>({});
 
   useEffect(() => {
     api.dictionary.getAll()
@@ -71,10 +73,26 @@ export function DictionaryView({ uid: _ }: Props) {
             {filtered.map(s => (
               <div key={s.id} className="sign-card" style={{ border:selected===s.id?`1.5px solid ${s.color}`:'1px solid var(--bdr)',boxShadow:selected===s.id?`0 0 0 3px ${s.color}18`:undefined }} onClick={()=>setSelected(p=>p===s.id?null:s.id)}>
                 <div style={{ padding:'14px 12px 8px',display:'flex',flexDirection:'column',alignItems:'center',gap:8,background:`${s.color}08` }}>
-                  {s.handConfig
-                    ? <HandSVG config={s.handConfig as HandConfig} color={s.color} size={56}/>
-                    : <div style={{ width:56,height:66,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,fontWeight:900,color:s.color,background:`${s.color}14`,borderRadius:12 }}>{s.letter}</div>
-                  }
+                  {/* Solo el ABECEDARIO muestra su foto real (/signs/{letter}.png),
+                      con fallback a texto si el archivo no existe (mismo patrón que
+                      LessonDetailView). El resto de categorías NO muestra foto: su
+                      `letter` es laxo (p.ej. "Hola" → 'H', "CH"…) y sería engañoso —
+                      siguen con HandSVG o la insignia de color. */}
+                  {s.category === 'Abecedario' && !imgError[s.id] ? (
+                    <img
+                      // normalize('NFD'): los archivos en public/signs se crearon en
+                      // macOS con nombre NFD (p.ej. Ñ = 'N'+U+0303). Para A-Z es un
+                      // no-op; para Ñ hace que la URL coincida con el archivo real.
+                      src={`/signs/${s.letter.normalize('NFD')}.png`}
+                      alt={`Seña ${s.letter}`}
+                      style={{ width:56,height:66,objectFit:'contain',borderRadius:12,background:`${s.color}14` }}
+                      onError={() => setImgError(m => ({ ...m, [s.id]: true }))}
+                    />
+                  ) : s.category !== 'Abecedario' && s.handConfig ? (
+                    <HandSVG config={s.handConfig as HandConfig} color={s.color} size={56}/>
+                  ) : (
+                    <div style={{ width:56,height:66,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,fontWeight:900,color:s.color,background:`${s.color}14`,borderRadius:12 }}>{s.letter}</div>
+                  )}
                 </div>
                 <div style={{ padding:'8px 10px 12px' }}>
                   <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4 }}>

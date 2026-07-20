@@ -41,7 +41,7 @@ function levelLabel(pct: number, completedCount: number): string {
 export function AppShell({ user, onLogout }: Props) {
   const [view,   setView]   = useState<AppView>('dashboard');
   const [lesson, setLesson] = useState<Lesson|null>(null);
-  const { saveProgress, getForLesson, globalProgress, completedCount, streak } = useProgress(user.uid);
+  const { saveProgress, getForLesson, globalProgress, completedCount, streak, loaded: progressLoaded } = useProgress(user.uid);
 
   // user con los campos derivados del progreso real (Postgres) sobrescritos;
   // totalSigns y badges quedan en 0 — no hay forma de calcularlos hoy (ver reporte).
@@ -116,7 +116,7 @@ export function AppShell({ user, onLogout }: Props) {
           {view==='dashboard'  && <DashboardView user={derivedUser} nav={nav} getForLesson={getForLesson} globalProgress={globalProgress}/>}
           {view==='dictionary' && <DictionaryView uid={user.uid}/>}
           {view==='lessons'    && <LessonsView nav={nav} getForLesson={getForLesson}/>}
-          {view==='lesson'&&lesson && <LessonDetailView lesson={lesson} onBack={()=>setView('lessons')} onProgress={saveProgress}/>}
+          {view==='lesson'&&lesson && <LessonDetailView lesson={lesson} onBack={()=>setView('lessons')} onProgress={saveProgress} getForLesson={getForLesson} progressLoaded={progressLoaded}/>}
           {view==='practice'   && <PracticeView/>}
           {view==='profile'    && <ProfileView user={derivedUser} onLogout={onLogout}/>}
           {view==='admin'&&user.role==='admin' && <AdminView adminUser={derivedUser}/>}

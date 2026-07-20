@@ -65,13 +65,13 @@ export function ProfileView({ user, onLogout }: Props) {
         </div>
       </div>
 
-      {/* Team */}
+      {/* Desarrollado por */}
       <div className="glass" style={{ padding: 14, marginBottom: 18, fontSize: 12, color: 'var(--t3)' }}>
         <div style={{ fontWeight: 700, color: 'var(--t2)', marginBottom: 6, fontSize: 12.5 }}>
-          Equipo SeñasUTSCMX
+          Desarrollado por
         </div>
         <div style={{ lineHeight: 1.8 }}>
-          Adrián Gottfried · Karolin Medina · Paola Moreno · Felipe Galván · Brandon González
+          Adrián Gottfried
         </div>
         <div style={{ marginTop: 6 }}>
           UTSC · Ingeniería en Desarrollo y Gestión de Software · 2026

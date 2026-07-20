@@ -14,27 +14,15 @@ import {
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  checkPassword, passwordStrength, passwordError, allChecksPassed,
-  REQUIREMENT_ITEMS,
-} from '../lib/passwordPolicy';
-import type { PasswordStrength } from '../lib/passwordPolicy';
+import { checkPassword, passwordError, allChecksPassed } from '../lib/passwordPolicy';
+import { emailError } from '../lib/emailValidation';
+import { PasswordStrengthMeter } from '../components/PasswordStrengthMeter';
 import { colors, radius, spacing } from '../theme';
 
 interface Props {
   onLogin:    (email: string, pw: string) => Promise<void>;
   onRegister: (name: string, email: string, pw: string) => Promise<void>;
 }
-
-const STRENGTH_LABEL: Record<PasswordStrength, string> = {
-  weak: 'Débil', medium: 'Media', strong: 'Fuerte',
-};
-const STRENGTH_COLOR: Record<PasswordStrength, string> = {
-  weak: colors.red, medium: colors.amber, strong: colors.green,
-};
-const STRENGTH_BARS: Record<PasswordStrength, number> = {
-  weak: 1, medium: 2, strong: 3,
-};
 
 export function AuthScreen({ onLogin, onRegister }: Props) {
   const [isLogin,       setIsLogin]       = useState(true);
@@ -53,7 +41,6 @@ export function AuthScreen({ onLogin, onRegister }: Props) {
   };
 
   const pwChecks    = checkPassword(pw);
-  const strength    = passwordStrength(pw);
   const confirmOk   = confirmPw.length > 0 && confirmPw === pw;
   const confirmBad  = confirmPw.length > 0 && confirmPw !== pw;
   // Todos los requisitos son obligatorios y bloqueantes: sin esto no se puede
@@ -65,6 +52,9 @@ export function AuthScreen({ onLogin, onRegister }: Props) {
     if (!email || !pw) { setErr('Completa todos los campos.'); return; }
     if (!isLogin) {
       if (!name) { setErr('Ingresa tu nombre completo.'); return; }
+      // Formato de email antes de llamar a Firebase (mejor mensaje que el genérico).
+      const eErr = emailError(email);
+      if (eErr) { setErr(eErr); return; }
       // Validación de cliente — más estricta que el mínimo de 6 de Firebase.
       const pwErr = passwordError(pw);
       if (pwErr) { setErr(pwErr); return; }
@@ -169,47 +159,7 @@ export function AuthScreen({ onLogin, onRegister }: Props) {
               </View>
 
               {/* Medidor de fortaleza + requisitos — solo en registro */}
-              {!isLogin && (
-                <View style={{ marginTop: 9 }}>
-                  <View style={styles.strengthRow}>
-                    <View style={styles.strengthBars}>
-                      {[0, 1, 2].map(i => {
-                        const on = pw.length > 0 && i < STRENGTH_BARS[strength];
-                        return (
-                          <View
-                            key={i}
-                            style={[
-                              styles.strengthBar,
-                              { backgroundColor: on ? STRENGTH_COLOR[strength] : colors.border2 },
-                            ]}
-                          />
-                        );
-                      })}
-                    </View>
-                    {pw.length > 0 && (
-                      <Text style={[styles.strengthLabel, { color: STRENGTH_COLOR[strength] }]}>
-                        {STRENGTH_LABEL[strength]}
-                      </Text>
-                    )}
-                  </View>
-
-                  <View style={{ gap: 4 }}>
-                    {REQUIREMENT_ITEMS.map(({ key, label }) => {
-                      const met       = pwChecks[key];
-                      const violated  = key === 'notCommon' && pw.length > 0 && !met;
-                      const satisfied = met && pw.length > 0;
-                      const color = violated ? colors.red : satisfied ? colors.green : colors.text3;
-                      const icon  = violated ? '❌' : satisfied ? '✅' : '⭕';
-                      return (
-                        <View key={key} style={styles.reqRow}>
-                          <Text style={styles.reqIcon}>{icon}</Text>
-                          <Text style={[styles.reqText, { color }]}>{label}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                </View>
-              )}
+              {!isLogin && <PasswordStrengthMeter pw={pw} />}
             </View>
 
             {!isLogin && (
@@ -301,15 +251,6 @@ const styles = StyleSheet.create({
   pwWrap:  { position: 'relative', justifyContent: 'center' },
   eye:     { position: 'absolute', right: 6, padding: 6 },
   eyeText: { fontSize: 15 },
-
-  strengthRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  strengthBars: { flex: 1, flexDirection: 'row', gap: 4 },
-  strengthBar:  { flex: 1, height: 4, borderRadius: 2 },
-  strengthLabel:{ fontSize: 11, fontWeight: '700', minWidth: 38, textAlign: 'right' },
-
-  reqRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  reqIcon: { fontSize: 11 },
-  reqText: { fontSize: 11.5 },
 
   hint: { fontSize: 11.5, marginTop: 5 },
 

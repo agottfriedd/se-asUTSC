@@ -3,6 +3,9 @@ import { api } from '../lib/api';
 import type { UserProfile } from '../types';
 import type { LessonFromAPI, AdminUser, UserRoleAPI } from '../lib/api';
 import { LessonEditor } from './admin/LessonEditor';
+import { checkPassword, passwordError, allChecksPassed } from '../lib/passwordPolicy';
+import { emailError } from '../lib/emailValidation';
+import { PasswordStrengthMeter } from '../components/PasswordStrengthMeter';
 
 interface Props { adminUser: UserProfile; }
 
@@ -381,14 +384,26 @@ function PasswordModal({ uid, name, onClose }: { uid: string; name: string; onCl
   const [pw, setPw] = useState('');
   const [err, setErr] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const pwOk = allChecksPassed(checkPassword(pw));
+
+  // Aviso de éxito y auto-cierre tras confirmar.
+  useEffect(() => {
+    if (!success) return;
+    const t = setTimeout(onClose, 1500);
+    return () => clearTimeout(t);
+  }, [success, onClose]);
 
   const submit = async () => {
     setErr('');
-    if (pw.length < 8) { setErr('La contraseña debe tener al menos 8 caracteres.'); return; }
+    // MISMA política estricta que el registro (no solo 8 caracteres).
+    const pwErr = passwordError(pw);
+    if (pwErr) { setErr(pwErr); return; }
     setSubmitting(true);
     try {
       await api.users.setPassword(uid, pw);
-      onClose();
+      setSuccess(true);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -396,16 +411,27 @@ function PasswordModal({ uid, name, onClose }: { uid: string; name: string; onCl
     }
   };
 
+  if (success) return (
+    <Overlay>
+      <div style={{ textAlign:'center', padding:'8px 0' }}>
+        <div style={{ fontSize:44, marginBottom:10 }}>✅</div>
+        <div style={{ fontWeight:800, fontSize:16, marginBottom:4 }}>Contraseña actualizada correctamente</div>
+        <div style={{ fontSize:12.5, color:'var(--t3)' }}>Nueva contraseña de <strong>{name}</strong>.</div>
+      </div>
+    </Overlay>
+  );
+
   return (
     <Overlay>
       <div style={{ fontWeight:800, fontSize:16, marginBottom:4 }}>🔑 Cambiar contraseña</div>
       <div style={{ fontSize:12.5, color:'var(--t3)', marginBottom:16 }}>Nueva contraseña para <strong>{name}</strong></div>
-      <input className="input-field" type="text" placeholder="Mínimo 8 caracteres" value={pw}
-        onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} autoFocus/>
+      <input className="input-field" type="text" placeholder="Crea una contraseña segura" value={pw}
+        onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && pwOk && submit()} autoFocus/>
+      <PasswordStrengthMeter pw={pw} />
       {err && <div style={{ fontSize:12, color:'var(--red)', marginTop:8 }}>❌ {err}</div>}
       <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:18 }}>
         <button className="btn-ghost" onClick={onClose} disabled={submitting}>Cancelar</button>
-        <button className="btn-primary" style={{ padding:'10px 18px' }} onClick={submit} disabled={submitting || pw.length < 8}>
+        <button className="btn-primary" style={{ padding:'10px 18px' }} onClick={submit} disabled={submitting || !pwOk}>
           {submitting ? 'Guardando…' : 'Cambiar'}
         </button>
       </div>
@@ -422,10 +448,16 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [err, setErr]     = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const pwOk = allChecksPassed(checkPassword(pw));
+
   const submit = async () => {
     setErr('');
     if (!name || !email || !pw) { setErr('Completa todos los campos.'); return; }
-    if (pw.length < 8) { setErr('La contraseña debe tener al menos 8 caracteres.'); return; }
+    // Formato de email + política de contraseña ESTRICTA (igual que el registro).
+    const eErr = emailError(email);
+    if (eErr) { setErr(eErr); return; }
+    const pwErr = passwordError(pw);
+    if (pwErr) { setErr(pwErr); return; }
     setSubmitting(true);
     try {
       await api.users.create({ name, email, password: pw, role });
@@ -444,7 +476,10 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
       <div style={{ display:'flex', flexDirection:'column', gap:11 }}>
         <input className="input-field" placeholder="Nombre completo" value={name} onChange={e => setName(e.target.value)} autoFocus/>
         <input className="input-field" type="email" placeholder="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)}/>
-        <input className="input-field" type="text" placeholder="Contraseña (mínimo 8)" value={pw} onChange={e => setPw(e.target.value)}/>
+        <div>
+          <input className="input-field" type="text" placeholder="Crea una contraseña segura" value={pw} onChange={e => setPw(e.target.value)}/>
+          <PasswordStrengthMeter pw={pw} />
+        </div>
         <select className="input-field" value={role} onChange={e => setRole(e.target.value as UserRoleAPI)}>
           <option value="student">Rol: Student</option>
           <option value="admin">Rol: Admin</option>
@@ -453,7 +488,7 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
       {err && <div style={{ fontSize:12, color:'var(--red)', marginTop:10 }}>❌ {err}</div>}
       <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:18 }}>
         <button className="btn-ghost" onClick={onClose} disabled={submitting}>Cancelar</button>
-        <button className="btn-primary" style={{ padding:'10px 18px' }} onClick={submit} disabled={submitting}>
+        <button className="btn-primary" style={{ padding:'10px 18px' }} onClick={submit} disabled={submitting || !pwOk}>
           {submitting ? 'Creando…' : 'Crear usuario'}
         </button>
       </div>

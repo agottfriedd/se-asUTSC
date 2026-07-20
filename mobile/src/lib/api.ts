@@ -46,10 +46,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return res.json();
 }
 
-const get  = <T>(path: string)                => request<T>('GET',    path);
-const post = <T>(path: string, body: unknown) => request<T>('POST',   path, body);
-const put  = <T>(path: string, body: unknown) => request<T>('PUT',    path, body);
-const del  = <T>(path: string)                => request<T>('DELETE', path);
+const get   = <T>(path: string)                => request<T>('GET',    path);
+const post  = <T>(path: string, body: unknown) => request<T>('POST',   path, body);
+const put   = <T>(path: string, body: unknown) => request<T>('PUT',    path, body);
+const patch = <T>(path: string, body: unknown) => request<T>('PATCH',  path, body);
+const del   = <T>(path: string)                => request<T>('DELETE', path);
 
 // ─── Lessons ─────────────────────────────────────────────────
 export const api = {
@@ -74,6 +75,25 @@ export const api = {
     save:    (data: { userId: string; lessonId: number; progress: number; completed: boolean }) =>
       post<ProgressFromAPI>('/api/progress', data),
   },
+
+  // ─── Administración de usuarios (backend + Firebase Admin SDK) ─────
+  // Todas requieren rol admin real (requireAdmin en el backend). El wrapper
+  // ya adjunta el ID token. Los guardrails anti-lockout (no borrarse/
+  // desactivarse/degradarse a uno mismo) los aplica el servidor y devuelve el
+  // mensaje en español en { error } → aquí llega como Error.message.
+  users: {
+    list:        ()                              => get<AdminUser[]>('/api/users'),
+    create:      (data: { email: string; password: string; name: string; role: UserRoleAPI }) =>
+      post<AdminUser>('/api/users', data),
+    remove:      (uid: string)                   => del<{ ok: true }>(`/api/users/${uid}`),
+    setRole:     (uid: string, role: UserRoleAPI) =>
+      patch<{ ok: true; uid: string; role: UserRoleAPI }>(`/api/users/${uid}/role`, { role }),
+    setDisabled: (uid: string, disabled: boolean) =>
+      patch<{ ok: true; uid: string; disabled: boolean }>(`/api/users/${uid}/disabled`, { disabled }),
+    setPassword: (uid: string, password: string) =>
+      patch<{ ok: true; uid: string }>(`/api/users/${uid}/password`, { password }),
+  },
+
   health: () => get<{ status: string }>('/health'),
 };
 
@@ -107,6 +127,19 @@ export interface ProgressFromAPI {
   lessonId:  number;
   progress:  number;
   completed: boolean;
+}
+
+export type UserRoleAPI = 'student' | 'admin';
+
+// Usuario tal como lo devuelve el backend (merge de Firebase Auth + RTDB).
+export interface AdminUser {
+  uid:        string;
+  email:      string;
+  name:       string;
+  role:       UserRoleAPI;
+  disabled:   boolean;
+  created?:   string;
+  lastLogin?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────

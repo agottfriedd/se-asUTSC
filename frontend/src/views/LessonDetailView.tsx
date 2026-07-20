@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
-import type { Lesson, ContentBlock } from '../types';
+import type { Lesson, ContentBlock, LessonProgress } from '../types';
 import { PBar } from '../components/UI';
 
 // ── Tipos MediaPipe ─────────────────────────────────────────────────
@@ -27,9 +27,11 @@ declare global {
 
 // ── Props ───────────────────────────────────────────────────────────
 interface Props {
-  lesson:     Lesson;
-  onBack:     () => void;
-  onProgress: (lessonId: number, pct: number, completed: boolean) => void;
+  lesson:         Lesson;
+  onBack:         () => void;
+  onProgress:     (lessonId: number, pct: number, completed: boolean) => void;
+  getForLesson:   (lessonId: number) => LessonProgress;
+  progressLoaded: boolean;
 }
 
 // Throttle de la clasificación remota (un request en vuelo a la vez).
@@ -68,12 +70,15 @@ function buildQuizOptions(target: string): string[] {
 // Segundos → "m:ss"
 const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
+export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, progressLoaded }: Props) {
   const [content,  setContent]  = useState<ContentBlock[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [step,     setStep]     = useState(0);
   const [quizAns,  setQuizAns]  = useState<number|null>(null);
   const [done,     setDone]     = useState(false);
+  // Retomar donde se quedó: mientras no se decida (Continuar / Empezar de nuevo)
+  // se muestra la tarjeta de retomar en vez del bloque. Se reinicia por lección.
+  const [resumeDecided, setResumeDecided] = useState(false);
 
   // ── Camera state & Refs ─────────────────────────────────────────
   const videoRef   = useRef<HTMLVideoElement>(null);
@@ -81,6 +86,13 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
   const rafRef     = useRef<number>(0);
   const handsRef   = useRef<HandsInstance|null>(null);
   const stepRef    = useRef<number>(0);
+  // El MediaStream se guarda AQUÍ, no solo en videoRef.current.srcObject. Al
+  // desmontar (navegar a otra vista), React pone videoRef.current = null ANTES
+  // de correr el cleanup del useEffect, así que stopCamera() ya no podía
+  // encontrar el stream por el ref del <video> y los tracks nunca se paraban
+  // (la cámara del navegador quedaba encendida). streamRef sobrevive al
+  // desmontaje y permite pararlos siempre.
+  const streamRef  = useRef<MediaStream|null>(null);
   // Token de sesión: cada startCamera() se identifica con un id. Si stopCamera()
   // corre mientras un startCamera() está a mitad de un await (getUserMedia,
   // espera de video listo…), el id ya no coincide y esa invocación se aborta y
@@ -148,7 +160,7 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
 
   // ── Cargar contenido ─────────────────────────────────────────────
   useEffect(() => {
-    setStep(0); setQuizAns(null); setDone(false); setLoading(true);
+    setStep(0); setQuizAns(null); setDone(false); setLoading(true); setResumeDecided(false);
     api.lessons.getById(lesson.id)
       .then(data => { setContent((data.content as ContentBlock[]) ?? []); setLoading(false); })
       .catch(() => setLoading(false));
@@ -222,6 +234,7 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
         return;
       }
       videoRef.current.srcObject = stream;
+      streamRef.current = stream;   // referencia que sobrevive al desmontaje
       videoRef.current.play();
 
       await new Promise<void>(resolve => {
@@ -330,10 +343,14 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
     sessionRef.current += 1; // invalida cualquier startCamera() en vuelo
     cancelAnimationFrame(rafRef.current);
     rafRef.current = 0;
-    if (videoRef.current?.srcObject) {
-      (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
-      videoRef.current.srcObject = null;
+    // Parar los tracks desde streamRef (sobrevive al desmontaje) — es lo que
+    // apaga la cámara del navegador de verdad. Antes se buscaban vía
+    // videoRef.current.srcObject, que en el cleanup de desmontaje ya es null.
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
     }
+    if (videoRef.current) videoRef.current.srcObject = null;
     handsRef.current = null;
     setCameraOn(false);
     busyRef.current = false;
@@ -371,11 +388,50 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
   const total = content.length;
   const progressPct = total > 0 ? Math.round((step / total) * 100) : 0;
 
+  // ── Retomar donde se quedó ───────────────────────────────────────
+  // El bloque se DERIVA del % guardado (redondeo exacto para nuestro tamaño de
+  // lecciones). Por el blindaje del backend (progress = max) el % refleja el
+  // bloque más lejano alcanzado, que es justo el punto de retomar. Si la lección
+  // ya está completada NO se retoma: se repasa desde el inicio.
+  const saved = getForLesson(lesson.id);
+  const resumeStep = saved.completed
+    ? 0
+    : Math.min(total - 1, Math.max(0, Math.round((saved.progress / 100) * total)));
+  // Solo se ofrece con progreso real, sin completar y pasado el bloque 0. Se
+  // espera a que el progreso esté cargado para no decidir con datos a medias.
+  const showResumePrompt = progressLoaded && !saved.completed && total > 0 && resumeStep >= 1 && !resumeDecided;
+  const isReview = progressLoaded && saved.completed;
+  const resumeBlk = content[resumeStep] as { type?: string; letter?: string } | undefined;
+  const resumeExtra = resumeBlk?.type === 'sign' && resumeBlk.letter ? ` · Seña ${resumeBlk.letter}` : '';
+
   if (loading) return (
     <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--t3)' }}>
       <div style={{ textAlign:'center' }}>
         <div style={{ fontSize:32,marginBottom:10 }}>⏳</div>
         <div>Cargando lección…</div>
+      </div>
+    </div>
+  );
+
+  // ── Tarjeta: ¿retomar o empezar de nuevo? ────────────────────────
+  if (showResumePrompt) return (
+    <div className="anim-fade-up" style={{ height:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24,textAlign:'center' }}>
+      <div style={{ fontSize:52,marginBottom:14 }}>⏸️</div>
+      <div style={{ fontWeight:800,fontSize:21,marginBottom:6 }}>¿Retomar la lección?</div>
+      <div style={{ fontSize:13.5,color:'var(--t2)',marginBottom:4 }}>{lesson.title}</div>
+      <div style={{ fontSize:13,color:'var(--t3)',marginBottom:26 }}>
+        Te quedaste en el bloque {resumeStep + 1} de {total}{resumeExtra}
+      </div>
+      <div style={{ display:'flex',flexDirection:'column',gap:10,width:'100%',maxWidth:320 }}>
+        <button className="btn-primary" style={{ justifyContent:'center',padding:'12px' }}
+          onClick={() => { setStep(resumeStep); setResumeDecided(true); }}>
+          Continuar donde me quedé →
+        </button>
+        <button className="btn-ghost" style={{ justifyContent:'center',padding:'12px' }}
+          onClick={() => { setStep(0); setResumeDecided(true); }}>
+          Empezar de nuevo
+        </button>
+        <button className="btn-sm" style={{ marginTop:4 }} onClick={onBack}>← Lecciones</button>
       </div>
     </div>
   );
@@ -407,6 +463,13 @@ export function LessonDetailView({ lesson, onBack, onProgress }: Props) {
           <span style={{ fontSize:11,color:'var(--t3)',fontWeight:600,minWidth:40 }}>{step+1}/{total}</span>
         </div>
       </div>
+
+      {/* Banner tenue de repaso — lección ya completada */}
+      {isReview && (
+        <div style={{ padding:'7px 16px',background:'var(--teal-d)',borderBottom:'1px solid var(--teal-b)',fontSize:12,color:'var(--teal)',fontWeight:600,flexShrink:0,textAlign:'center' }}>
+          🔁 Repaso — ya completaste esta lección
+        </div>
+      )}
 
       {/* ── Contenido ── */}
       <div style={{ flex:1,overflowY:'auto' }}>

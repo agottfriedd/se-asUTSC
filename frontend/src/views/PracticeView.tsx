@@ -41,6 +41,12 @@ export function PracticeView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef<number>(0);
   const handsRef  = useRef<HandsInstance|null>(null);
+  // El MediaStream se guarda AQUÍ, no solo en videoRef.current.srcObject. Al
+  // desmontar (navegar a otra vista), React pone videoRef.current = null ANTES
+  // del cleanup del useEffect, así que buscar el stream por el ref del <video>
+  // fallaba y los tracks nunca se paraban (cámara del navegador encendida).
+  // streamRef sobrevive al desmontaje.
+  const streamRef = useRef<MediaStream|null>(null);
   // Token de sesión: invalida un startCamera() en vuelo si stopCamera() corre
   // antes de que termine (p.ej. se sale de la vista mientras carga la cámara).
   const sessionRef = useRef(0);
@@ -144,6 +150,7 @@ export function PracticeView() {
         return;
       }
       videoRef.current.srcObject = stream;
+      streamRef.current = stream;   // referencia que sobrevive al desmontaje
       videoRef.current.play();
 
       // ── CORRECCIÓN: esperar a que el video tenga dimensiones reales ──
@@ -223,10 +230,14 @@ export function PracticeView() {
     sessionRef.current += 1; // invalida cualquier startCamera() en vuelo
     cancelAnimationFrame(rafRef.current);
     rafRef.current = 0;
-    if (videoRef.current?.srcObject) {
-      (videoRef.current.srcObject as MediaStream).getTracks().forEach(t=>t.stop());
-      videoRef.current.srcObject=null;
+    // Parar los tracks desde streamRef (sobrevive al desmontaje) — es lo que
+    // apaga la cámara de verdad. Antes se buscaban vía videoRef.current.srcObject,
+    // que en el cleanup de desmontaje ya es null.
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t=>t.stop());
+      streamRef.current = null;
     }
+    if (videoRef.current) videoRef.current.srcObject = null;
     handsRef.current = null;
     setRunning(false); setResult(null); setMlDown(false);
     latestLmRef.current = null;

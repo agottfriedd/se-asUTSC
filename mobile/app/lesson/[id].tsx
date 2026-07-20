@@ -55,7 +55,7 @@ const screenOptions = (title: string) => ({
 export default function LessonDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { saveProgress } = useProgress();
+  const { saveProgress, getForLesson, loaded: progressLoaded } = useProgress();
 
   const [lesson,  setLesson]  = useState<LessonFromAPI | null>(null);
   const [content, setContent] = useState<ContentBlock[]>([]);
@@ -66,6 +66,9 @@ export default function LessonDetailScreen() {
   const [quizAns,      setQuizAns]      = useState<number | null>(null);
   const [signUnlocked, setSignUnlocked] = useState(false);
   const [done,         setDone]         = useState(false);
+  // Retomar donde se quedó: mientras no se decida (Continuar / Empezar de nuevo)
+  // se muestra la tarjeta de retomar en vez del bloque.
+  const [resumeDecided, setResumeDecided] = useState(false);
 
   // ── Fallback (mini-quiz visual) ─────────────────────────────────
   const [countdown,    setCountdown]    = useState(FALLBACK_TIMEOUT_S);
@@ -79,6 +82,7 @@ export default function LessonDetailScreen() {
 
   useEffect(() => {
     if (!id) return;
+    setResumeDecided(false);
     api.lessons.getById(Number(id))
       .then(data => {
         setLesson(data);
@@ -170,6 +174,20 @@ export default function LessonDetailScreen() {
     }
   };
 
+  // ── Retomar donde se quedó ───────────────────────────────────────
+  // El bloque se DERIVA del % guardado (redondeo exacto para nuestro tamaño de
+  // lecciones). Por el blindaje del backend (progress = max) el % refleja el
+  // bloque más lejano alcanzado. Si ya está completada NO se retoma: se repasa
+  // desde el inicio. Se espera a que el progreso esté cargado (progressLoaded).
+  const saved = lesson ? getForLesson(lesson.id) : null;
+  const resumeStep = saved && !saved.completed && total > 0
+    ? Math.min(total - 1, Math.max(0, Math.round((saved.progress / 100) * total)))
+    : 0;
+  const showResumePrompt = !!saved && progressLoaded && !saved.completed && total > 0 && resumeStep >= 1 && !resumeDecided;
+  const isReview = !!saved && progressLoaded && saved.completed;
+  const resumeBlk = content[resumeStep] as { type?: string; letter?: string } | undefined;
+  const resumeExtra = resumeBlk?.type === 'sign' && resumeBlk.letter ? ` · Seña ${resumeBlk.letter}` : '';
+
   // ── Carga / error / completado / sin contenido ──────────────────
   if (loading) {
     return (
@@ -186,6 +204,34 @@ export default function LessonDetailScreen() {
         <Stack.Screen options={screenOptions('Lección')} />
         <View style={styles.pad}>
           <ErrorBanner text="No se pudo cargar esta lección. Verifica tu red e inténtalo de nuevo." />
+        </View>
+      </>
+    );
+  }
+
+  // ── Tarjeta: ¿retomar o empezar de nuevo? ────────────────────────
+  if (showResumePrompt) {
+    return (
+      <>
+        <Stack.Screen options={screenOptions(lesson.title)} />
+        <View style={styles.resumeWrap}>
+          <Text style={{ fontSize: 52 }}>⏸️</Text>
+          <Text style={styles.resumeTitle}>¿Retomar la lección?</Text>
+          <Text style={styles.resumeSub}>{lesson.title}</Text>
+          <Text style={styles.resumeInfo}>
+            Te quedaste en el bloque {resumeStep + 1} de {total}{resumeExtra}
+          </Text>
+          <View style={styles.resumeButtons}>
+            <Pressable style={styles.primaryBtn} onPress={() => { setStep(resumeStep); setResumeDecided(true); }}>
+              <Text style={styles.primaryBtnText}>Continuar donde me quedé →</Text>
+            </Pressable>
+            <Pressable style={styles.ghostBtn} onPress={() => { setStep(0); setResumeDecided(true); }}>
+              <Text style={styles.ghostBtnText}>Empezar de nuevo</Text>
+            </Pressable>
+            <Pressable onPress={() => router.back()} style={styles.resumeBack}>
+              <Text style={styles.resumeBackText}>← Lecciones</Text>
+            </Pressable>
+          </View>
         </View>
       </>
     );
@@ -239,6 +285,13 @@ export default function LessonDetailScreen() {
     <>
       <Stack.Screen options={screenOptions(lesson.title)} />
       <View style={styles.container}>
+
+        {/* Banner tenue de repaso — lección ya completada */}
+        {isReview && (
+          <View style={styles.reviewBanner}>
+            <Text style={styles.reviewBannerText}>🔁 Repaso — ya completaste esta lección</Text>
+          </View>
+        )}
 
         {/* Barra de progreso + contador de pasos */}
         <View style={styles.progressRow}>
@@ -480,6 +533,33 @@ export default function LessonDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   pad: { padding: spacing.xl },
+
+  // Tarjeta de retomar
+  resumeWrap: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xxl,
+    gap: spacing.sm,
+  },
+  resumeTitle: { fontSize: 21, fontWeight: '800', color: colors.text1, marginTop: spacing.sm },
+  resumeSub:   { fontSize: 13.5, color: colors.text2 },
+  resumeInfo:  { fontSize: 13, color: colors.text3, marginBottom: spacing.lg, textAlign: 'center' },
+  resumeButtons: { width: '100%', maxWidth: 320, gap: spacing.sm },
+  resumeBack:  { alignItems: 'center', paddingVertical: spacing.sm, marginTop: spacing.xs },
+  resumeBackText: { fontSize: 13, color: colors.text3, fontWeight: '600' },
+
+  // Banner tenue de repaso
+  reviewBanner: {
+    paddingVertical: 7,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.tealBg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.tealBorder,
+    alignItems: 'center',
+  },
+  reviewBannerText: { fontSize: 12, color: colors.teal, fontWeight: '600' },
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',

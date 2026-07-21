@@ -43,7 +43,10 @@ const STABLE_FRAMES_NEEDED = 13;
 // ── Fallback de práctica ────────────────────────────────────────────
 // Si tras este tiempo el usuario no logra la seña con la cámara, se le
 // ofrece una ruta alternativa (mini-quiz visual) para no atascarse.
-const FALLBACK_TIMEOUT_S = 60;
+const FALLBACK_TIMEOUT_S = 35;
+// Aviso ámbar de los últimos segundos, proporcional al timeout (60→10, 35→6):
+// era un 10 fijo; ahora se deriva para escalar con FALLBACK_TIMEOUT_S.
+const FALLBACK_WARN_S = Math.round(FALLBACK_TIMEOUT_S / 6);
 // Letras con imagen disponible en /public/signs/ — pool para los distractores
 // del mini-quiz. Se garantiza que todas tienen PNG (evita el fallback a texto
 // que delataría cuáles son "de relleno").
@@ -165,6 +168,22 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
       .then(data => { setContent((data.content as ContentBlock[]) ?? []); setLoading(false); })
       .catch(() => setLoading(false));
   }, [lesson.id]);
+
+  // ── Decisión de retomar: UNA sola vez al ABRIR ───────────────────
+  // En cuanto contenido y progreso cargaron, si NO hay avance real que retomar
+  // se resuelve de inmediato (resumeDecided=true → entrar directo). Así, avanzar
+  // bloques dentro de la lección —que sube el % vía el guardado por-bloque— NO
+  // vuelve a disparar la tarjeta. Si sí hay avance, se deja resumeDecided=false
+  // para que la tarjeta se muestre y el usuario elija. Depende SOLO del momento
+  // de carga (no de saved.progress), por eso decide una vez y no se re-evalúa.
+  useEffect(() => {
+    if (resumeDecided || !progressLoaded || content.length === 0) return;
+    const s = getForLesson(lesson.id);
+    const rStep = s.completed ? 0 : Math.min(content.length - 1, Math.max(0, Math.round((s.progress / 100) * content.length)));
+    const shouldPrompt = !s.completed && s.progress > 0 && rStep >= 1;
+    if (!shouldPrompt) setResumeDecided(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progressLoaded, content.length, lesson.id]);
 
   // ── Actualizar progreso al avanzar ───────────────────────────────
   useEffect(() => {
@@ -397,9 +416,11 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
   const resumeStep = saved.completed
     ? 0
     : Math.min(total - 1, Math.max(0, Math.round((saved.progress / 100) * total)));
-  // Solo se ofrece con progreso real, sin completar y pasado el bloque 0. Se
-  // espera a que el progreso esté cargado para no decidir con datos a medias.
-  const showResumePrompt = progressLoaded && !saved.completed && total > 0 && resumeStep >= 1 && !resumeDecided;
+  // Solo se ofrece con AVANCE REAL: progreso guardado > 0 y bloque derivado >= 1
+  // (no basta con que exista un registro — el guardado por-bloque crea uno con
+  // 0% al abrir la lección). Sin completar y con el progreso ya cargado
+  // (progressLoaded) para no decidir con datos a medias.
+  const showResumePrompt = progressLoaded && !saved.completed && saved.progress > 0 && resumeStep >= 1 && !resumeDecided;
   const isReview = progressLoaded && saved.completed;
   const resumeBlk = content[resumeStep] as { type?: string; letter?: string } | undefined;
   const resumeExtra = resumeBlk?.type === 'sign' && resumeBlk.letter ? ` · Seña ${resumeBlk.letter}` : '';
@@ -538,7 +559,7 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
                 {!signUnlocked && countdown > 0 && (
                   <span
                     title="Si se te complica, en cuanto llegue a 0:00 te ofreceremos otra forma de practicar"
-                    style={{ display:'flex',alignItems:'center',gap:5,fontSize:12,fontWeight:700,color:countdown<=10?'var(--amb)':'var(--t3)',background:'var(--bg3)',border:'1px solid var(--bdr)',borderRadius:20,padding:'3px 10px' }}>
+                    style={{ display:'flex',alignItems:'center',gap:5,fontSize:12,fontWeight:700,color:countdown<=FALLBACK_WARN_S?'var(--amb)':'var(--t3)',background:'var(--bg3)',border:'1px solid var(--bdr)',borderRadius:20,padding:'3px 10px' }}>
                     ⏱ {fmtTime(countdown)}
                   </span>
                 )}

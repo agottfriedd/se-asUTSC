@@ -17,7 +17,10 @@ import type { ContentBlock } from '../../src/types';
 // Portado de LessonDetailView.tsx (web). Si tras este tiempo el usuario no
 // logra la seña con la cámara —o si el ml-service está caído— se le ofrece una
 // ruta alternativa (identificar la seña entre 4 imágenes) para no atascarse.
-const FALLBACK_TIMEOUT_S = 60;
+const FALLBACK_TIMEOUT_S = 35;
+// Aviso ámbar de los últimos segundos, proporcional al timeout (60→10, 35→6):
+// era un 10 fijo; ahora se deriva para escalar con FALLBACK_TIMEOUT_S.
+const FALLBACK_WARN_S = Math.round(FALLBACK_TIMEOUT_S / 6);
 
 // Pool de distractores: solo letras con imagen (las claves de SIGN_IMAGES),
 // así ninguna opción cae al fallback de texto que delataría cuáles son de
@@ -92,6 +95,21 @@ export default function LessonDetailScreen() {
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // ── Decisión de retomar: UNA sola vez al ABRIR ───────────────────
+  // En cuanto contenido y progreso cargaron, si NO hay avance real que retomar
+  // se resuelve de inmediato (resumeDecided=true → entrar directo). Así, avanzar
+  // bloques —que sube el % vía el guardado por-bloque— NO vuelve a disparar la
+  // tarjeta. Si sí hay avance, se deja que la tarjeta se muestre y el usuario
+  // elija. Depende SOLO del momento de carga (no de saved.progress).
+  useEffect(() => {
+    if (resumeDecided || !progressLoaded || !lesson || content.length === 0) return;
+    const s = getForLesson(lesson.id);
+    const rStep = s.completed ? 0 : Math.min(content.length - 1, Math.max(0, Math.round((s.progress / 100) * content.length)));
+    const shouldPrompt = !s.completed && s.progress > 0 && rStep >= 1;
+    if (!shouldPrompt) setResumeDecided(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progressLoaded, content.length, lesson?.id]);
 
   // Guardar progreso al avanzar (mismo criterio que la web)
   useEffect(() => {
@@ -183,7 +201,9 @@ export default function LessonDetailScreen() {
   const resumeStep = saved && !saved.completed && total > 0
     ? Math.min(total - 1, Math.max(0, Math.round((saved.progress / 100) * total)))
     : 0;
-  const showResumePrompt = !!saved && progressLoaded && !saved.completed && total > 0 && resumeStep >= 1 && !resumeDecided;
+  // Solo con AVANCE REAL: progreso guardado > 0 y bloque derivado >= 1 (no basta
+  // con que exista un registro — el guardado por-bloque crea uno con 0% al abrir).
+  const showResumePrompt = !!saved && progressLoaded && !saved.completed && saved.progress > 0 && resumeStep >= 1 && !resumeDecided;
   const isReview = !!saved && progressLoaded && saved.completed;
   const resumeBlk = content[resumeStep] as { type?: string; letter?: string } | undefined;
   const resumeExtra = resumeBlk?.type === 'sign' && resumeBlk.letter ? ` · Seña ${resumeBlk.letter}` : '';
@@ -476,8 +496,8 @@ export default function LessonDetailScreen() {
                 <>
                   {countdown > 0 && (
                     <View style={styles.countdownRow}>
-                      <View style={[styles.countdownPill, countdown <= 10 && styles.countdownPillWarn]}>
-                        <Text style={[styles.countdownText, countdown <= 10 && { color: colors.amber }]}>
+                      <View style={[styles.countdownPill, countdown <= FALLBACK_WARN_S && styles.countdownPillWarn]}>
+                        <Text style={[styles.countdownText, countdown <= FALLBACK_WARN_S && { color: colors.amber }]}>
                           ⏱ {fmtTime(countdown)}
                         </Text>
                       </View>

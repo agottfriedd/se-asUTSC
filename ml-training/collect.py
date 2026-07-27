@@ -50,7 +50,7 @@ CAPTURE_INTERVAL = 0.10
 # Letras estaticas del abecedario LSM que este modelo va a aprender.
 # Se excluyen las que llevan movimiento (J, M, N, Ñ, Q, Z): esas necesitan
 # analisis de secuencia, no de una sola pose.
-LETRAS = list("ABCDEFGHIKLOPRSTUVWXY")
+LETRAS = list("ABCDEFGHIKLMNOPRSTUVWY")
 
 # Conexiones entre landmarks, solo para dibujar el esqueleto de la mano.
 CONEXIONES = [

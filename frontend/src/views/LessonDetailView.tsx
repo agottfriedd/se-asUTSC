@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { api } from '../lib/api';
+import { api, ML_CONFIDENCE_GATE, handednessDesdeLegacy } from '../lib/api';
 import type { Lesson, ContentBlock, LessonProgress } from '../types';
 import { PBar } from '../components/UI';
 import { colors } from '../theme';
@@ -9,7 +9,12 @@ type Pt = { x: number; y: number; z: number };
 
 interface HandsInstance {
   setOptions: (o: object) => void;
-  onResults: (cb: (r: { multiHandLandmarks?: Pt[][] }) => void) => void;
+  onResults: (cb: (r: {
+    multiHandLandmarks?: Pt[][];
+    // Coordenadas en metros con origen en la muñeca: las que usa el modelo.
+    multiHandWorldLandmarks?: Pt[][];
+    multiHandedness?: { label?: string }[];
+  }) => void) => void;
   send: (i: { image: HTMLVideoElement }) => Promise<void>;
 }
 
@@ -22,9 +27,9 @@ declare global {
   }
 }
 
-// La clasificación LSM vive en ml-service/app/classifier.py (única fuente de
-// verdad). Aquí solo extraemos los 21 landmarks con MediaPipe y los enviamos a
-// POST /classify vía api.ml.classify(). Ver PracticeView.tsx (mismo patrón).
+// La clasificación LSM vive en el ml-service (única fuente de verdad). Aquí
+// solo extraemos los landmarks con MediaPipe y los enviamos a POST /classify
+// vía api.ml.classify(). Ver PracticeView.tsx (mismo patrón).
 
 // ── Props ───────────────────────────────────────────────────────────
 interface Props {
@@ -295,11 +300,17 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
           if (!busyRef.current && now - lastReqRef.current >= CLASSIFY_MIN_INTERVAL_MS) {
             busyRef.current = true;
             lastReqRef.current = now;
-            api.ml.classify(lm)
+            // Los world landmarks son los que usa el modelo; los de imagen se
+            // siguen mandando para dibujar y para el fallback de reglas.
+            const world = results.multiHandWorldLandmarks?.[0];
+            // La etiqueta de legacy va al revés que la de Tasks; hay que
+            // traducirla o el servicio espeja la mano al revés. Ver api.ts.
+            const hand  = handednessDesdeLegacy(results.multiHandedness?.[0]?.label);
+            api.ml.classify(lm, world, hand)
               .then(prediction => {
                 setMlDown(false);
                 setDetectedLetter(prediction.letter);
-                if (prediction.confidence > 0.72 && prediction.letter !== '?') {
+                if (prediction.confidence > ML_CONFIDENCE_GATE && prediction.letter !== '?') {
                   setLastDetected(prev => {
                     if (prev === prediction.letter && prediction.letter === targetLetter) {
                       setStableCount(c => {

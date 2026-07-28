@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 from pydantic import BaseModel, Field
 
+from . import model as ml_model
 from .classifier import classify
 
 MODEL_PATH = "hand_landmarker.task"
@@ -58,15 +59,38 @@ class Landmark(BaseModel):
     z: float
 
 class ClassifyRequest(BaseModel):
+    # Landmarks de imagen (normalizados a [0,1]). Siguen siendo obligatorios:
+    # son lo único que necesita el fallback de reglas.
     landmarks: list[Landmark] = Field(min_length=21, max_length=21)
+    # Campos OPCIONALES, añadidos para el modelo ML. Son opcionales a propósito:
+    # la PWA se sirve tras un service worker, así que hay clientes con la
+    # versión vieja cacheada que siguen mandando solo `landmarks`. Con esto
+    # siguen funcionando (con reglas) en vez de romperse con un 422.
+    world_landmarks: Optional[list[Landmark]] = Field(default=None, min_length=21, max_length=21)
+    handedness:      Optional[str] = None
 
 class ClassifyResponse(BaseModel):
     letter:     str
     confidence: float
 
+def _clasificar(world_landmarks, handedness, landmarks_imagen):
+    """Modelo ML si se puede; reglas si no. Única vía de decisión, compartida
+    por /recognize y /classify para que ambos se comporten igual."""
+    pred = ml_model.predict(world_landmarks, handedness)
+    if pred is not None:
+        return pred
+    return classify(landmarks_imagen)
+
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "SeñasUTSCMX ML"}
+    return {
+        "status":  "ok",
+        "service": "SeñasUTSCMX ML",
+        # Para saber de un vistazo si está clasificando con el modelo o
+        # degradado a reglas, sin tener que leer los logs del proceso.
+        "classifier":  "ml" if ml_model.disponible() else "rules",
+        "model_error": ml_model.ERROR_CARGA,
+    }
 
 @app.post("/recognize", response_model=RecognizeResponse)
 def recognize(req: RecognizeRequest):
@@ -87,7 +111,19 @@ def recognize(req: RecognizeRequest):
         {"x": lm.x, "y": lm.y, "z": lm.z}
         for lm in result.hand_landmarks[0]
     ]
-    letter, confidence = classify(lm_list)
+    # World landmarks (metros, origen en la muñeca): es lo que come el modelo.
+    # detect() ya los devolvía; hasta ahora simplemente no se leían.
+    world_list = [
+        {"x": lm.x, "y": lm.y, "z": lm.z}
+        for lm in result.hand_world_landmarks[0]
+    ] if result.hand_world_landmarks else []
+
+    handedness = (
+        result.handedness[0][0].category_name
+        if result.handedness and result.handedness[0] else None
+    )
+
+    letter, confidence = _clasificar(world_list, handedness, lm_list)
 
     response = RecognizeResponse(
         letter=letter, confidence=round(confidence, 3), hand_found=True
@@ -99,8 +135,15 @@ def recognize(req: RecognizeRequest):
 
 @app.post("/classify", response_model=ClassifyResponse)
 def classify_landmarks(req: ClassifyRequest):
-    """Clasifica 21 landmarks de MediaPipe ya extraídos (sin imagen)."""
-    letter, confidence = classify([lm.model_dump() for lm in req.landmarks])
+    """Clasifica 21 landmarks de MediaPipe ya extraídos (sin imagen).
+
+    Si llegan `world_landmarks` usa el modelo ML; si no, cae a las reglas. Un
+    cliente viejo que solo manda `landmarks` sigue funcionando igual que antes.
+    """
+    world = [lm.model_dump() for lm in req.world_landmarks] if req.world_landmarks else []
+    letter, confidence = _clasificar(
+        world, req.handedness, [lm.model_dump() for lm in req.landmarks]
+    )
     return ClassifyResponse(letter=letter, confidence=confidence)
 
 @app.post("/landmarks")

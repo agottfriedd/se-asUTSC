@@ -67,10 +67,27 @@ Browser (PWA)
 | Frontend     | React 18 + TypeScript + Vite + TailwindCSS    |
 | Auth + DB    | Firebase Auth + Firestore                     |
 | Backend API  | Node.js + Express + Prisma + PostgreSQL       |
-| ML Service   | Python + FastAPI + MediaPipe Hands            |
+| ML Service   | Python + FastAPI + MediaPipe Hands + scikit-learn |
 | ML In-browser| MediaPipe Hands JS (WebAssembly)              |
 
+El reconocimiento de señas lo hace un **SVM entrenado** (`ml-service/modelo/`),
+con el clasificador de reglas como fallback. Detalles, contrato de la API y
+avisos importantes (quiralidad, versiones de numpy): **[ml-service/README.md](ml-service/README.md)**.
+
 ## Pendientes
+
+- **Recalibrar el gate de confianza (0.72)**: se eligió para el clasificador de
+  reglas, donde la confianza era un margen heurístico. Ahora sale de
+  `predict_proba` del modelo y es una probabilidad real mucho más alta: deja
+  pasar el 97.7 % de los frames, así que casi no filtra. Un valor razonable
+  sería ~0.90. Se dejó en 0.72 a propósito para no desalinear web y móvil; hay
+  que subirlo en **ambas a la vez**, con datos de uso real y con más de un
+  sujeto (el modelo se entrenó con uno solo). En web es la constante
+  `ML_CONFIDENCE_GATE` en `frontend/src/lib/api.ts`; en móvil está en duro.
+- **Letras que no coinciden entre modelo y fallback**: el modelo emite M, N y R
+  pero **nunca X**; las reglas tienen X pero no M/N/R. Además
+  `SIGN_DESCRIPTIONS` en `frontend/src/views/PracticeView.tsx` sigue listando X
+  aunque el modelo no la produzca. Falta decidir qué hacer.
 
 - **Recuperación de contraseña**: el enlace "¿Olvidaste tu contraseña?" está
   comentado en `frontend/src/views/AuthView.tsx` (web); en móvil nunca existió.

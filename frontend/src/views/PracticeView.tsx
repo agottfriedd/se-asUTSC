@@ -1,19 +1,25 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { api } from '../lib/api';
+import { api, ML_CONFIDENCE_GATE, handednessDesdeLegacy } from '../lib/api';
 import type { RecognitionResult } from '../types';
 import { colors } from '../theme';
 
 type Pt = { x: number; y: number; z: number };
 
-// La clasificación vive en ml-service/app/classifier.py (única fuente de
-// verdad). Aquí solo extraemos landmarks con MediaPipe y los mandamos a
-// POST /classify. Mínimo intervalo entre requests para no saturar el servicio
-// (onResults dispara a ~30 fps).
+// La clasificación vive en el ml-service (única fuente de verdad). Aquí solo
+// extraemos landmarks con MediaPipe y los mandamos a POST /classify. Mínimo
+// intervalo entre requests para no saturar el servicio (onResults dispara a
+// ~30 fps).
 const CLASSIFY_MIN_INTERVAL_MS = 150;
 
 interface HandsInstance {
   setOptions: (o: object) => void;
-  onResults: (cb: (r: { multiHandLandmarks?: Pt[][] }) => void) => void;
+  onResults: (cb: (r: {
+    multiHandLandmarks?: Pt[][];
+    // Coordenadas en metros con origen en la muñeca. Son las que necesita el
+    // modelo entrenado; las de imagen dependen del encuadre y la resolución.
+    multiHandWorldLandmarks?: Pt[][];
+    multiHandedness?: { label?: string }[];
+  }) => void) => void;
   send: (i: { image: HTMLVideoElement }) => Promise<void>;
 }
 
@@ -68,16 +74,16 @@ export function PracticeView() {
   // Últimos landmarks vistos (para capturar fixtures)
   const latestLmRef = useRef<Pt[]|null>(null);
 
-  const classifyRemote = useCallback((lm: Pt[]) => {
+  const classifyRemote = useCallback((lm: Pt[], world?: Pt[], handedness?: string) => {
     const now = Date.now();
     if (busyRef.current || now - lastReqRef.current < CLASSIFY_MIN_INTERVAL_MS) return;
     busyRef.current = true;
     lastReqRef.current = now;
-    api.ml.classify(lm)
+    api.ml.classify(lm, world, handedness)
       .then(prediction => {
         setMlDown(false);
         setResult(prediction);
-        if (prediction.confidence > 0.72 && prediction.letter !== '?') {
+        if (prediction.confidence > ML_CONFIDENCE_GATE && prediction.letter !== '?') {
           setLastLetter(prev => {
             if (prev === prediction.letter) {
               setSameCount(c => {
@@ -192,7 +198,13 @@ export function PracticeView() {
           window.drawConnectors(ctx,lm,window.HAND_CONNECTIONS,{color:colors.utscOrange,lineWidth:2});
           window.drawLandmarks(ctx,lm,{color:colors.utscTeal,radius:3,fillColor:colors.utscTeal});
           latestLmRef.current = lm;
-          classifyRemote(lm);      // async; el dibujo no espera al servicio
+          // Los world landmarks son los que usa el modelo; los de imagen se
+          // siguen mandando para dibujar y para el fallback de reglas.
+          const world = results.multiHandWorldLandmarks?.[0];
+          // La etiqueta de legacy va al revés que la de Tasks; hay que
+          // traducirla o el servicio espeja la mano al revés. Ver api.ts.
+          const hand  = handednessDesdeLegacy(results.multiHandedness?.[0]?.label);
+          classifyRemote(lm, world, hand);  // async; el dibujo no espera al servicio
         } else {
           latestLmRef.current = null;
           setResult(null);

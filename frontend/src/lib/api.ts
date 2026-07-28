@@ -87,12 +87,28 @@ export const api = {
 
   // ─── Servicio ML (FastAPI, puerto distinto al backend) ─────
   ml: {
-    /** Clasifica 21 landmarks de MediaPipe. Fuente de verdad: ml-service/app/classifier.py */
-    classify: async (landmarks: LandmarkPoint[]): Promise<MLClassifyResponse> => {
+    /**
+     * Clasifica 21 landmarks de MediaPipe. Fuente de verdad: ml-service.
+     *
+     * `worldLandmarks` y `handedness` son OPCIONALES en el contrato, pero
+     * mándalos siempre: sin ellos el servicio cae al clasificador de reglas
+     * (classifier.py) en vez de usar el modelo entrenado. Son opcionales
+     * justamente para que un cliente viejo cacheado por el service worker siga
+     * funcionando en lugar de romperse con un 422.
+     */
+    classify: async (
+      landmarks: LandmarkPoint[],
+      worldLandmarks?: LandmarkPoint[],
+      handedness?: string,
+    ): Promise<MLClassifyResponse> => {
       const res = await fetch(`${ML_BASE}/classify`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ landmarks }),
+        body:    JSON.stringify({
+          landmarks,
+          world_landmarks: worldLandmarks,
+          handedness,
+        }),
       });
       if (!res.ok) throw new Error(`ML error ${res.status}: /classify`);
       return res.json();
@@ -111,6 +127,42 @@ export interface LandmarkPoint { x: number; y: number; z: number }
 export interface MLClassifyResponse {
   letter:     string;  // 'A'..'Y' o '?' si no supera el umbral
   confidence: number;  // [0,1]
+}
+
+/**
+ * Umbral mínimo de confianza para dar una letra por buena.
+ *
+ * PENDIENTE DE RECALIBRAR. Este 0.72 se eligió para el clasificador de reglas,
+ * donde la confianza era un margen heurístico. Ahora la confianza viene de
+ * predict_proba del modelo SVM, que es una probabilidad real y mucho más alta:
+ * medida sobre una sesión no vista da mediana 0.971 y deja pasar el 97.7% de
+ * los frames, así que este umbral casi no filtra nada.
+ *
+ * Se mantiene en 0.72 A PROPÓSITO para no desalinear web y móvil (mobile/ usa
+ * el mismo valor y su flujo no cambia). Subirlo a ~0.90 se hará en ambas
+ * plataformas a la vez, con datos de uso real y con más de un sujeto: el modelo
+ * se entrenó con uno solo, así que con otras manos la confianza bajará.
+ */
+export const ML_CONFIDENCE_GATE = 0.72;
+
+/**
+ * Traduce la handedness de MediaPipe **legacy** (el bundle del CDN que usa la
+ * web) a la convención de MediaPipe **Tasks** (el que corre en el ml-service).
+ *
+ * Las dos librerías NO coinciden: verificado sobre la misma foto de una mano
+ * derecha sin espejar, Tasks reporta "Right" y legacy reporta "Left"
+ * (score 0.996). Legacy invierte la ETIQUETA porque asume que la imagen viene
+ * espejada — pero NO invierte las coordenadas world, que llegan en la misma
+ * orientación física que las de Tasks.
+ *
+ * El ml-service usa la handedness para decidir si espeja la mano antes de
+ * clasificar, y espera la convención de Tasks. Mandar la etiqueta legacy sin
+ * traducir clasificaba mal: para esa misma foto daba "P" (0.392) en vez de
+ * "V" (0.642).
+ */
+export function handednessDesdeLegacy(label?: string): string | undefined {
+  if (!label) return undefined;
+  return label === 'Left' ? 'Right' : 'Left';
 }
 
 // ─── API response types ───────────────────────────────────────

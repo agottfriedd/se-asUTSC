@@ -6,3 +6,13 @@ numpy==1.26.4
 Pillow==10.3.0
 python-multipart==0.0.9
 python-dotenv==1.0.1
+
+# Clasificador ML (modelo/clasificador_lsm.joblib).
+# Versiones EXACTAS del entorno de entrenamiento (conda "senias-ml"): un
+# pipeline serializado con una versión de sklearn puede fallar al deserializarse
+# con otra.
+# NO añadir pandas: arrastra numpy 2.x y mediapipe 0.10.14 solo funciona con
+# 1.x. Ya rompió el servicio una vez. Solo se usa para entrenar, no para servir.
+scikit-learn==1.9.0
+scipy==1.17.1
+joblib==1.5.3

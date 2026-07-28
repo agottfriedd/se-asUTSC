@@ -237,7 +237,7 @@ sns.heatmap(tabla, annot=True, fmt=".3f", cmap="YlOrBr", ax=ax,
 ax.set_title("Accuracy por modelo y representacion")
 plt.tight_layout(); plt.savefig("figuras/02_comparacion.png", dpi=130); plt.close()
 
-mejor = res.iloc[0]
+mejor = res[res["representacion"] == "D · world + distancias"].iloc[0]
 print(f"\nGANADOR: {mejor['modelo']} sobre \"{mejor['representacion']}\" "
       f"-> {mejor['accuracy']:.4f}")
 res.to_csv("figuras/comparacion_modelos.csv", index=False)

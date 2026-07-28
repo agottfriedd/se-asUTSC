@@ -1,0 +1,24 @@
+{
+  "creado": "2026-07-28T16:43:10",
+  "tipo": "senas dinamicas (secuencias)",
+  "modelo": "k-NN",
+  "representacion": "A · solo forma",
+  "accuracy_cv": 1.0,
+  "particion": "StratifiedGroupKFold por sesion",
+  "n_particiones": 3,
+  "letras": [
+    "J",
+    "NT",
+    "Q",
+    "X",
+    "Z"
+  ],
+  "n_secuencias": 154,
+  "n_sesiones": 3,
+  "sujetos": [
+    "adrian"
+  ],
+  "n_features": 30,
+  "n_puntos_trayectoria": 8,
+  "nota": "La etiqueta NT corresponde a la letra N-tilde. El pipeline de features esta en entrenar_dinamicas.py: features_de_secuencia()."
+}

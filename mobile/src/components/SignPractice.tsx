@@ -12,7 +12,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { DEBUG_RECOGNITION, ML_URL } from '../lib/config';
 import { SIGN_IMAGES } from '../lib/signImages';
-import { colors, radius, spacing } from '../theme';
+import { colors, fonts, pressedStyle, radius, spacing } from '../theme';
 
 // ─── Calibración del reconocimiento — AJUSTAR CON PRUEBAS EN IPHONE ────
 // Cómo se relacionan las tres constantes:
@@ -201,7 +201,7 @@ export function SignPractice({ letter, unlocked, onUnlocked, onMlDownChange }: P
         <Text style={styles.permText}>
           Necesitamos la cámara para validar que haces la seña correctamente.
         </Text>
-        <Pressable style={styles.permBtn} onPress={requestPermission}>
+        <Pressable style={({ pressed }) => [styles.permBtn, pressed && pressedStyle]} onPress={requestPermission}>
           <Text style={styles.permBtnText}>Dar permiso</Text>
         </Pressable>
       </View>
@@ -232,7 +232,7 @@ export function SignPractice({ letter, unlocked, onUnlocked, onMlDownChange }: P
       {/* Estado inferior: letra detectada + puntos de estabilidad.
           Tap largo aquí alterna el modo debug. */}
       <Pressable
-        style={styles.statusRow}
+        style={({ pressed }) => [styles.statusRow, pressed && pressedStyle]}
         onLongPress={() => setDebug(d => !d)}
         delayLongPress={600}
       >
@@ -270,7 +270,7 @@ export function SignPractice({ letter, unlocked, onUnlocked, onMlDownChange }: P
       )}
 
       {/* PiP: referencia siempre visible mientras haces la seña */}
-      <Pressable style={styles.pip} onPress={() => setRefExpanded(true)}>
+      <Pressable style={({ pressed }) => [styles.pip, pressed && pressedStyle]} onPress={() => setRefExpanded(true)}>
         {refImage ? (
           <Image source={refImage} style={styles.pipImage} resizeMode="contain" />
         ) : (
@@ -282,7 +282,7 @@ export function SignPractice({ letter, unlocked, onUnlocked, onMlDownChange }: P
       </Pressable>
 
       {refExpanded && (
-        <Pressable style={styles.expanded} onPress={() => setRefExpanded(false)}>
+        <Pressable style={({ pressed }) => [styles.expanded, pressed && pressedStyle]} onPress={() => setRefExpanded(false)}>
           {refImage ? (
             <Image source={refImage} style={styles.expandedImage} resizeMode="contain" />
           ) : (
@@ -301,7 +301,7 @@ export function SignPractice({ letter, unlocked, onUnlocked, onMlDownChange }: P
       {/* ML caído: sin el servicio NO se puede avanzar de lección */}
       {mlDown && !unlocked && (
         <View style={styles.mlDown}>
-          <Text style={{ fontSize: 34 }}>🔌</Text>
+          <Text style={{ fontSize: 34, fontFamily: fonts.regular }}>🔌</Text>
           <Text style={styles.mlDownTitle}>Sin conexión con el servicio de reconocimiento</Text>
           <Text style={styles.mlDownText}>
             La validación de señas corre en el servidor (ml-service). No puedes
@@ -328,15 +328,15 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     borderColor: colors.border,
   },
-  permTitle: { fontSize: 16, fontWeight: '800', color: colors.text1 },
-  permText: { fontSize: 12.5, color: colors.text3, textAlign: 'center', lineHeight: 18 },
+  permTitle: { fontSize: 16, fontFamily: fonts.extrabold, fontWeight: '800', color: colors.text1 },
+  permText: { fontSize: 12.5, fontFamily: fonts.regular, color: colors.text3, textAlign: 'center', lineHeight: 18 },
   permBtn: {
-    backgroundColor: colors.teal,
+    backgroundColor: colors.pri,
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: radius.md,
   },
-  permBtnText: { color: colors.bg, fontWeight: '700', fontSize: 13.5 },
+  permBtnText: { color: colors.onPri, fontWeight: '700', fontSize: 13.5, fontFamily: fonts.bold },
 
   statusRow: {
     position: 'absolute',
@@ -356,8 +356,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
-  statusLabel: { fontSize: 12, color: colors.text3 },
-  statusLetter: { fontSize: 20, fontWeight: '900' },
+  statusLabel: { fontSize: 12, fontFamily: fonts.regular, color: colors.text3 },
+  statusLetter: { fontSize: 20, fontFamily: fonts.extrabold, fontWeight: '900' },
   dot: { width: 10, height: 10, borderRadius: 5 },
 
   noHand: {
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
-  noHandText: { fontSize: 11.5, color: colors.text3 },
+  noHandText: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.text3 },
 
   debugStrip: {
     position: 'absolute',
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 8,
   },
-  debugText: { fontSize: 10.5, color: colors.amber, fontVariant: ['tabular-nums'] },
+  debugText: { fontSize: 10.5, fontFamily: fonts.regular, color: colors.amber, fontVariant: ['tabular-nums'] },
 
   pip: {
     position: 'absolute',
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pipImage: { width: '100%', height: '100%' },
-  pipLetter: { fontSize: 48, fontWeight: '900', color: colors.teal },
+  pipLetter: { fontSize: 48, fontFamily: fonts.extrabold, fontWeight: '900', color: colors.teal },
   pipCaption: {
     position: 'absolute',
     bottom: 0,
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     alignItems: 'center',
   },
-  pipCaptionText: { fontSize: 10, fontWeight: '700', color: colors.teal },
+  pipCaptionText: { fontSize: 10, fontFamily: fonts.bold, fontWeight: '700', color: colors.teal },
 
   expanded: {
     ...StyleSheet.absoluteFillObject,
@@ -421,8 +421,8 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   expandedImage: { width: '85%', aspectRatio: 1, borderRadius: radius.lg },
-  expandedLetter: { fontSize: 140, fontWeight: '900', color: colors.teal },
-  expandedHint: { fontSize: 12, color: colors.text3 },
+  expandedLetter: { fontSize: 140, fontFamily: fonts.extrabold, fontWeight: '900', color: colors.teal },
+  expandedHint: { fontSize: 12, fontFamily: fonts.regular, color: colors.text3 },
 
   successBanner: {
     position: 'absolute',
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     zIndex: 5,
   },
-  successText: { fontSize: 13.5, fontWeight: '700', color: colors.bg },
+  successText: { fontSize: 13.5, fontFamily: fonts.bold, fontWeight: '700', color: colors.bg },
 
   mlDown: {
     ...StyleSheet.absoluteFillObject,
@@ -446,13 +446,13 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   mlDownTitle: {
-    fontSize: 14.5,
+    fontSize: 14.5, fontFamily: fonts.extrabold,
     fontWeight: '800',
     color: colors.red,
     textAlign: 'center',
   },
   mlDownText: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: fonts.regular,
     color: colors.text2,
     textAlign: 'center',
     lineHeight: 18,

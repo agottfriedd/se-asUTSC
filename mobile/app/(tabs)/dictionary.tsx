@@ -11,7 +11,7 @@ import {
 import { api, type SignFromAPI } from '../../src/lib/api';
 import { useAuth } from '../../src/hooks/useAuth';
 import { useFavorites } from '../../src/hooks/useFavorites';
-import { colors, radius, spacing } from '../../src/theme';
+import { colors, fonts, pressedStyle, radius, spacing } from '../../src/theme';
 import { LoadingView, ErrorBanner } from '../../src/components/UI';
 import { SignCard } from '../../src/components/SignCard';
 
@@ -74,9 +74,9 @@ export default function DictionaryScreen() {
               <Pressable
                 key={c}
                 onPress={() => setCat(c)}
-                style={[styles.chip, active ? styles.chipActive : styles.chipInactive]}
+                style={({ pressed }) => [styles.chip, active ? styles.chipActive : styles.chipInactive, pressed && pressedStyle]}
               >
-                <Text style={[styles.chipText, { color: active ? '#040D14' : colors.text2 }]}>{c}</Text>
+                <Text style={[styles.chipText, { color: active ? colors.onPri : colors.text2 }]}>{c}</Text>
               </Pressable>
             );
           })}
@@ -125,16 +125,16 @@ const styles = StyleSheet.create({
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: colors.bg3,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
   },
-  searchIcon: { fontSize: 14, marginRight: spacing.sm, color: colors.text3 },
-  searchInput: { flex: 1, color: colors.text1, fontSize: 14, paddingVertical: 11 },
-  clearIcon: { color: colors.text3, fontSize: 18, paddingHorizontal: 4 },
+  searchIcon: { fontSize: 14, fontFamily: fonts.regular, marginRight: spacing.sm, color: colors.text3 },
+  searchInput: { flex: 1, color: colors.text1, fontSize: 14, fontFamily: fonts.regular, paddingVertical: 11 },
+  clearIcon: { color: colors.text3, fontSize: 18, fontFamily: fonts.regular, paddingHorizontal: 4 },
   chipsRow: { gap: 7 },
   chip: {
     paddingVertical: 5,
@@ -142,13 +142,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
   },
-  chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
+  chipActive: { backgroundColor: colors.pri, borderColor: colors.priActive },
   chipInactive: { backgroundColor: colors.card, borderColor: colors.border },
-  chipText: { fontSize: 12, fontWeight: '600' },
+  chipText: { fontSize: 12, fontFamily: fonts.semibold, fontWeight: '600' },
   countLine: {
     paddingVertical: 8,
     paddingHorizontal: spacing.lg,
-    fontSize: 11.5,
+    fontSize: 11.5, fontFamily: fonts.regular,
     color: colors.text3,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -157,6 +157,6 @@ const styles = StyleSheet.create({
   row: { gap: spacing.sm },
   gridContent: { padding: 14, gap: spacing.sm },
   empty: { alignItems: 'center', paddingVertical: 40 },
-  emptyEmoji: { fontSize: 32, marginBottom: spacing.md },
+  emptyEmoji: { fontSize: 32, fontFamily: fonts.regular, marginBottom: spacing.md },
   emptyText: { fontWeight: '600', color: colors.text2 },
 });

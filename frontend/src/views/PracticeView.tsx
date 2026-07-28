@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api';
 import type { RecognitionResult } from '../types';
+import { colors } from '../theme';
 
 type Pt = { x: number; y: number; z: number };
 
@@ -188,8 +189,8 @@ export function PracticeView() {
 
         if (results.multiHandLandmarks?.length) {
           const lm=results.multiHandLandmarks[0];
-          window.drawConnectors(ctx,lm,window.HAND_CONNECTIONS,{color:'#0ED2B8',lineWidth:2});
-          window.drawLandmarks(ctx,lm,{color:'#9D7BF8',radius:3,fillColor:'#9D7BF8'});
+          window.drawConnectors(ctx,lm,window.HAND_CONNECTIONS,{color:colors.utscOrange,lineWidth:2});
+          window.drawLandmarks(ctx,lm,{color:colors.utscTeal,radius:3,fillColor:colors.utscTeal});
           latestLmRef.current = lm;
           classifyRemote(lm);      // async; el dibujo no espera al servicio
         } else {
@@ -246,7 +247,7 @@ export function PracticeView() {
   useEffect(()=>()=>stopCamera(),[stopCamera]);
 
   const confPct   = result ? Math.round(result.confidence*100) : 0;
-  const confColor = confPct>=80?'#22C97E':confPct>=60?'#F5A623':'#F05050';
+  const confColor = confPct>=80?'var(--ink-grn)':confPct>=60?'var(--ink-amb)':'var(--ink-red)';
 
   return (
     <div className="anim-fade-up" style={{height:'100%',overflowY:'auto',padding:20}}>
@@ -273,10 +274,10 @@ export function PracticeView() {
             </div>
           )}
           {running && mlDown && (
-            <div style={{position:'absolute',inset:0,zIndex:3,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,background:'rgba(8,13,26,.82)',backdropFilter:'blur(4px)',padding:24,textAlign:'center'}}>
+            <div style={{position:'absolute',inset:0,zIndex:3,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,background:'var(--cam-veil)',backdropFilter:'blur(4px)',padding:24,textAlign:'center'}}>
               <div style={{fontSize:40}}>🔌</div>
-              <div style={{fontWeight:800,fontSize:16,color:'var(--red)'}}>Sin conexión con el servicio de reconocimiento</div>
-              <div style={{fontSize:12.5,color:'var(--t2)',maxWidth:380,lineHeight:1.5}}>
+              <div style={{fontWeight:800,fontSize:16,color:'var(--ink-red)'}}>Sin conexión con el servicio de reconocimiento</div>
+              <div style={{fontSize:12.5,color:'var(--ink-t2)',maxWidth:380,lineHeight:1.5}}>
                 La clasificación de señas ahora se hace en el servidor (ml-service).
                 Mientras no responda, la práctica no puede reconocer letras.
                 Verifica que el servicio esté corriendo y reintentaremos automáticamente.
@@ -284,28 +285,28 @@ export function PracticeView() {
             </div>
           )}
           {running && result && result.letter!=='?' && (
-            <div style={{position:'absolute',top:12,right:12,background:'rgba(8,13,26,.88)',backdropFilter:'blur(10px)',borderRadius:14,padding:'12px 18px',border:`1.5px solid ${confColor}40`,minWidth:80,textAlign:'center'}}>
+            <div style={{position:'absolute',top:12,right:12,background:'var(--cam-veil)',backdropFilter:'blur(10px)',borderRadius:14,padding:'12px 18px',border:`1.5px solid ${confColor}40`,minWidth:80,textAlign:'center'}}>
               <div style={{fontSize:48,fontWeight:900,color:confColor,lineHeight:1}}>{result.letter}</div>
               <div style={{fontSize:11,color:confColor,fontWeight:600,marginTop:4}}>{confPct}% confianza</div>
               {SIGN_DESCRIPTIONS[result.letter] && (
-                <div style={{fontSize:10,color:'var(--t3)',marginTop:3,maxWidth:120}}>{SIGN_DESCRIPTIONS[result.letter]}</div>
+                <div style={{fontSize:10,color:'var(--ink-t3)',marginTop:3,maxWidth:120}}>{SIGN_DESCRIPTIONS[result.letter]}</div>
               )}
             </div>
           )}
           {running && !mlDown && (!result || result.letter==='?') && (
-            <div style={{position:'absolute',top:12,left:12,background:'rgba(8,13,26,.7)',borderRadius:10,padding:'6px 12px',fontSize:12,color:'var(--t3)'}}>
+            <div style={{position:'absolute',top:12,left:12,background:'var(--cam-chip)',borderRadius:10,padding:'6px 12px',fontSize:12,color:'var(--ink-t3)'}}>
               Sin mano detectada
             </div>
           )}
           {running && result && (
-            <div style={{position:'absolute',bottom:0,left:0,right:0,height:5,background:'rgba(0,0,0,.4)'}}>
+            <div style={{position:'absolute',bottom:0,left:0,right:0,height:5,background:'var(--cam-track)'}}>
               <div style={{height:'100%',width:`${confPct}%`,background:confColor,transition:'width .15s,background .15s'}}/>
             </div>
           )}
         </div>
 
         {error && (
-          <div style={{padding:'10px 14px',borderRadius:10,marginBottom:14,background:'rgba(240,80,80,.1)',border:'1px solid rgba(240,80,80,.25)',fontSize:13,color:'var(--red)'}}>
+          <div style={{padding:'10px 14px',borderRadius:10,marginBottom:14,background:'var(--red-d)',border:'1px solid var(--red-b)',fontSize:13,color:'var(--red)'}}>
             ⚠️ {error}
           </div>
         )}

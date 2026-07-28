@@ -4,7 +4,7 @@ interface PBarProps {
   height?: number;
   gradient?: string;
 }
-export function PBar({ pct, height = 6, gradient = 'linear-gradient(90deg,#0ED2B8,#9D7BF8)' }: PBarProps) {
+export function PBar({ pct, height = 6, gradient = 'var(--pbar-fill)' }: PBarProps) {
   return (
     <div className="pbar-track" style={{ height }}>
       <div

@@ -2,7 +2,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/hooks/useAuth';
 import { BADGES_LIST } from '../../src/data/badges';
-import { colors, radius, spacing } from '../../src/theme';
+import { colors, fonts, pressedStyle, radius, spacing } from '../../src/theme';
 import { glassStyle, StatCard, Tag } from '../../src/components/UI';
 
 // Portado de frontend/src/views/ProfileView.tsx
@@ -46,7 +46,7 @@ export default function ProfileScreen() {
           {BADGES_LIST.map(b => (
             <View key={b.name} style={[glassStyle, styles.badgeRow]}>
               <View style={styles.badgeIcon}>
-                <Text style={{ fontSize: 19 }}>{b.emoji}</Text>
+                <Text style={{ fontSize: 19, fontFamily: fonts.regular }}>{b.emoji}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.badgeName}>{b.name}</Text>
@@ -71,12 +71,12 @@ export default function ProfileScreen() {
           de gestión de usuarios (la propia pantalla también redirige si el rol
           no es admin, como defensa en profundidad). */}
       {user.role === 'admin' && (
-        <Pressable style={styles.adminBtn} onPress={() => router.push('/admin')}>
+        <Pressable style={({ pressed }) => [styles.adminBtn, pressed && pressedStyle]} onPress={() => router.push('/admin')}>
           <Text style={styles.adminText}>⚙️ Administración</Text>
         </Pressable>
       )}
 
-      <Pressable style={styles.logoutBtn} onPress={handleLogout}>
+      <Pressable style={({ pressed }) => [styles.logoutBtn, pressed && pressedStyle]} onPress={handleLogout}>
         <Text style={styles.logoutText}>🚪 Cerrar sesión</Text>
       </Pressable>
     </ScrollView>
@@ -98,16 +98,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.violet,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { fontSize: 20, fontWeight: '800', color: '#040D14' },
-  name: { fontWeight: '800', fontSize: 17, color: colors.text1 },
-  email: { fontSize: 12.5, color: colors.text3, marginTop: 3 },
+  avatarText: { fontSize: 20, fontFamily: fonts.extrabold, fontWeight: '800', color: colors.onFill },
+  name: { fontWeight: '800', fontSize: 17, fontFamily: fonts.extrabold, color: colors.text1 },
+  email: { fontSize: 12.5, fontFamily: fonts.regular, color: colors.text3, marginTop: 3 },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
     marginBottom: spacing.xl,
   },
-  sectionTitle: { fontWeight: '700', fontSize: 14, color: colors.text1, marginBottom: spacing.md },
+  sectionTitle: { fontWeight: '700', fontSize: 14, fontFamily: fonts.bold, color: colors.text1, marginBottom: spacing.md },
   badgeRow: {
     padding: 13,
     flexDirection: 'row',
@@ -119,11 +119,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.amberBg,
     alignItems: 'center', justifyContent: 'center',
   },
-  badgeName: { fontWeight: '600', fontSize: 13.5, color: colors.text1 },
-  badgeDesc: { fontSize: 11.5, color: colors.text3, marginTop: 2 },
+  badgeName: { fontWeight: '600', fontSize: 13.5, fontFamily: fonts.semibold, color: colors.text1 },
+  badgeDesc: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.text3, marginTop: 2 },
   teamCard: { padding: 14, marginBottom: spacing.lg + 2 },
-  teamTitle: { fontWeight: '700', color: colors.text2, marginBottom: 6, fontSize: 12.5 },
-  teamText: { fontSize: 12, color: colors.text3, lineHeight: 19 },
+  teamTitle: { fontWeight: '700', color: colors.text2, marginBottom: 6, fontSize: 12.5, fontFamily: fonts.bold },
+  teamText: { fontSize: 12, fontFamily: fonts.regular, color: colors.text3, lineHeight: 19 },
   adminBtn: {
     padding: 11,
     borderRadius: radius.md,
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  adminText: { color: colors.amber, fontWeight: '700', fontSize: 13.5 },
+  adminText: { color: colors.amber, fontWeight: '700', fontSize: 13.5, fontFamily: fonts.bold },
   logoutBtn: {
     padding: 11,
     borderRadius: radius.md,
@@ -142,5 +142,5 @@ const styles = StyleSheet.create({
     borderColor: `${colors.red}40`,
     alignItems: 'center',
   },
-  logoutText: { color: colors.red, fontWeight: '600', fontSize: 13.5 },
+  logoutText: { color: colors.red, fontWeight: '600', fontSize: 13.5, fontFamily: fonts.semibold },
 });

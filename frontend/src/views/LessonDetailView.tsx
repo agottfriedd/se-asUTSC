@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
 import type { Lesson, ContentBlock, LessonProgress } from '../types';
 import { PBar } from '../components/UI';
+import { colors } from '../theme';
 
 // ── Tipos MediaPipe ─────────────────────────────────────────────────
 type Pt = { x: number; y: number; z: number };
@@ -285,8 +286,8 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
         ctx.drawImage(video, 0, 0);
         if (results.multiHandLandmarks?.length) {
           const lm = results.multiHandLandmarks[0];
-          window.drawConnectors(ctx, lm, window.HAND_CONNECTIONS, { color: '#0ED2B8', lineWidth: 2 });
-          window.drawLandmarks(ctx, lm, { color: '#9D7BF8', radius: 3, fillColor: '#9D7BF8' });
+          window.drawConnectors(ctx, lm, window.HAND_CONNECTIONS, { color: colors.utscOrange, lineWidth: 2 });
+          window.drawLandmarks(ctx, lm, { color: colors.utscTeal, radius: 3, fillColor: colors.utscTeal });
 
           // Clasificación remota (fuente de verdad: ml-service). El dibujo de
           // arriba sigue a ~30fps; los requests van con throttle + guard.
@@ -428,7 +429,7 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
   if (loading) return (
     <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--t3)' }}>
       <div style={{ textAlign:'center' }}>
-        <div style={{ fontSize:32,marginBottom:10 }}>⏳</div>
+        <div style={{ fontSize:32,marginBottom:10,animation:'breathe 1.6s ease-in-out infinite' }}>⏳</div>
         <div>Cargando lección…</div>
       </div>
     </div>
@@ -501,15 +502,15 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
 
             {/* Éxito overlay */}
             {signUnlocked && (
-              <div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:'#22C97E',color:'#040D14',borderRadius:20,padding:'6px 18px',fontWeight:700,fontSize:14,zIndex:10}}>
+              <div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:'var(--grn)',color:'var(--on-fill)',borderRadius:20,padding:'6px 18px',fontWeight:700,fontSize:14,zIndex:10,animation:'unlockPopCentered var(--d-celebrate) var(--ease-bounce) both'}}>
                 ✅ ¡Seña correcta! Toca Continuar
               </div>
             )}
             {false && (
-              <div style={{ position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(8,13,26,.85)',zIndex:999,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:16 }}>
+              <div style={{ position:'fixed',top:0,left:0,right:0,bottom:0,background:'var(--scrim)',zIndex:999,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:16 }}>
                 <div style={{ fontSize:80 }}>✅</div>
-                <div style={{ fontSize:26,fontWeight:800,color:'#22C97E' }}>¡Seña correcta!</div>
-                <div style={{ fontSize:16,color:'var(--t2)' }}>Avanzando…</div>
+                <div style={{ fontSize:26,fontWeight:800,color:'var(--ink-grn)' }}>¡Seña correcta!</div>
+                <div style={{ fontSize:16,color:'var(--ink-t2)' }}>Avanzando…</div>
               </div>
             )}
 
@@ -553,7 +554,7 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
             {/* Parte inferior — cámara + imagen grande */}
             <div style={{ padding:'0 20px 20px' }}>
               <div style={{ fontWeight:700,fontSize:14,marginBottom:10,display:'flex',alignItems:'center',gap:8 }}>
-                <span style={{ width:8,height:8,borderRadius:'50%',background:cameraOn?'#22C97E':'var(--t3)',display:'inline-block' }}/>
+                <span style={{ width:8,height:8,borderRadius:'50%',background:cameraOn?'var(--grn)':'var(--t3)',display:'inline-block' }}/>
                 <span style={{ flex:1 }}>{cameraOn ? `Haz la seña "${targetLetter}"` : 'Iniciando cámara…'}</span>
                 {/* Cuenta regresiva discreta: solo mientras corre y sin desbloquear */}
                 {!signUnlocked && countdown > 0 && (
@@ -571,7 +572,7 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
               <div style={{ display:quizOpen?'none':'grid',gridTemplateColumns:'1fr 1fr',gap:16 }}>
 
                 {/* Cámara izquierda */}
-                <div style={{ position:'relative',borderRadius:14,overflow:'hidden',background:'var(--bg3)',border:`2px solid ${signUnlocked?'#22C97E':'var(--bdr)'}`,aspectRatio:'4/3',transition:'border-color .3s' }}>
+                <div style={{ position:'relative',borderRadius:14,overflow:'hidden',background:'var(--bg3)',border:`2px solid ${signUnlocked?'var(--grn)':'var(--bdr)'}`,aspectRatio:'4/3',transition:'border-color .3s' }}>
                   <video ref={videoRef} style={{ display:'none' }} playsInline muted/>
                   <canvas ref={canvasRef} style={{ width:'100%',height:'100%',objectFit:'cover',display:cameraOn?'block':'none' }}/>
                   {!cameraOn && !cameraError && (
@@ -588,10 +589,10 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
                     </div>
                   )}
                   {mlDown && cameraOn && !signUnlocked && (
-                    <div style={{ position:'absolute',inset:0,zIndex:20,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8,padding:18,textAlign:'center',background:'rgba(8,13,26,.9)',backdropFilter:'blur(4px)' }}>
+                    <div style={{ position:'absolute',inset:0,zIndex:20,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8,padding:18,textAlign:'center',background:'var(--cam-veil)',backdropFilter:'blur(4px)' }}>
                       <div style={{ fontSize:34 }}>🔌</div>
-                      <div style={{ fontWeight:800,fontSize:14,color:'var(--red)' }}>Sin conexión con el servicio de reconocimiento</div>
-                      <div style={{ fontSize:11.5,color:'var(--t2)',lineHeight:1.5,maxWidth:280 }}>
+                      <div style={{ fontWeight:800,fontSize:14,color:'var(--ink-red)' }}>Sin conexión con el servicio de reconocimiento</div>
+                      <div style={{ fontSize:11.5,color:'var(--ink-t2)',lineHeight:1.5,maxWidth:280 }}>
                         La detección de señas corre en el servidor (ml-service) y no
                         responde. Reintentando automáticamente… o practica de otra
                         forma con el botón de abajo. 👇
@@ -599,21 +600,21 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
                     </div>
                   )}
                   {signUnlocked && (
-                    <div style={{ position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:'#22C97E',color:'#040D14',borderRadius:20,padding:'6px 18px',fontWeight:700,fontSize:14,zIndex:10,whiteSpace:'nowrap' }}>
+                    <div style={{ position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:'var(--grn)',color:'var(--on-fill)',borderRadius:20,padding:'6px 18px',fontWeight:700,fontSize:14,zIndex:10,whiteSpace:'nowrap',animation:'unlockPopCentered var(--d-celebrate) var(--ease-bounce) both' }}>
                       ✅ ¡Seña correcta!
                     </div>
                   )}
                   {cameraOn && (
                     <div style={{ position:'absolute',bottom:10,left:10,right:10,display:'flex',justifyContent:'space-between',alignItems:'center' }}>
-                      <div style={{ background:'rgba(8,13,26,.85)',borderRadius:10,padding:'8px 14px',display:'flex',alignItems:'center',gap:10 }}>
-                        <span style={{ fontSize:13,color:'var(--t3)' }}>Detectando:</span>
-                        <span style={{ fontSize:22,fontWeight:900,color: detectedLetter === targetLetter ? '#22C97E' : 'var(--t2)' }}>
+                      <div style={{ background:'var(--cam-veil)',borderRadius:10,padding:'8px 14px',display:'flex',alignItems:'center',gap:10 }}>
+                        <span style={{ fontSize:13,color:'var(--ink-t3)' }}>Detectando:</span>
+                        <span style={{ fontSize:22,fontWeight:900,color: detectedLetter === targetLetter ? 'var(--ink-grn)' : 'var(--ink-t2)' }}>
                           {detectedLetter || '—'}
                         </span>
                       </div>
-                      <div style={{ background:'rgba(8,13,26,.85)',borderRadius:10,padding:'8px 14px',display:'flex',gap:6,alignItems:'center' }}>
+                      <div style={{ background:'var(--cam-veil)',borderRadius:10,padding:'8px 14px',display:'flex',gap:6,alignItems:'center' }}>
                         {Array.from({ length: STABLE_FRAMES_NEEDED > 10 ? 10 : STABLE_FRAMES_NEEDED }).map((_, i) => (
-                          <div key={i} style={{ width:10,height:10,borderRadius:'50%',background: i < Math.round(stableCount * 10 / STABLE_FRAMES_NEEDED) && lastDetected === targetLetter ? '#22C97E' : 'var(--bdr)',transition:'background .2s' }}/>
+                          <div key={i} style={{ width:10,height:10,borderRadius:'50%',background: i < Math.round(stableCount * 10 / STABLE_FRAMES_NEEDED) && lastDetected === targetLetter ? 'var(--grn)' : 'var(--bdr)',transition:'background .2s' }}/>
                         ))}
                       </div>
                     </div>
@@ -632,7 +633,7 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
                       parent.innerHTML = `<div style="font-size:120px;font-weight:900;color:var(--teal);text-align:center">${targetLetter}</div>`;
                     }}
                   />
-                  <div style={{ position:'absolute',bottom:10,left:'50%',transform:'translateX(-50%)',background:'rgba(8,13,26,.8)',borderRadius:8,padding:'4px 12px',fontSize:12,color:'var(--teal)',fontWeight:600,whiteSpace:'nowrap' }}>
+                  <div style={{ position:'absolute',bottom:10,left:'50%',transform:'translateX(-50%)',background:'var(--cam-veil)',borderRadius:8,padding:'4px 12px',fontSize:12,color:'var(--ink-pri)',fontWeight:600,whiteSpace:'nowrap' }}>
                     Referencia: {targetLetter}
                   </div>
                 </div>
@@ -647,12 +648,12 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
 
               {/* ── Fallback: ruta alternativa (aparece al agotar el minuto o si el ML está caído) ── */}
               {fallbackOffered && !quizOpen && (
-                <div style={{ marginTop:16,padding:'16px',borderRadius:12,background:'var(--vio-d)',border:'1px solid rgba(157,123,248,.3)',textAlign:'center' }}>
+                <div style={{ marginTop:16,padding:'16px',borderRadius:12,background:'var(--vio-d)',border:'1px solid var(--vio-b)',textAlign:'center' }}>
                   <div style={{ fontSize:13.5,color:'var(--t2)',marginBottom:12,lineHeight:1.5 }}>
                     ¿Se te complica hacer la seña? No te preocupes, puedes practicar de otra forma.
                   </div>
                   <button className="btn-primary" onClick={openFallbackQuiz}
-                    style={{ background:'linear-gradient(135deg,#9D7BF8,#7B5BD8)',justifyContent:'center' }}>
+                    style={{ background:'var(--nav-ink)',borderColor:'var(--nav-ink)',color:'var(--on-fill)',justifyContent:'center' }}>
                     🧩 ¿Se te complica? Practica de otra forma
                   </button>
                 </div>
@@ -695,7 +696,7 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
                     })}
                   </div>
                   {wrongPick !== null && (
-                    <div style={{ marginTop:20,padding:'14px 16px',borderRadius:10,background:'rgba(240,80,80,.1)',border:'1px solid rgba(240,80,80,.3)',maxWidth:520,marginLeft:'auto',marginRight:'auto' }}>
+                    <div style={{ marginTop:20,padding:'14px 16px',borderRadius:10,background:'var(--red-d)',border:'1px solid var(--red-b)',maxWidth:520,marginLeft:'auto',marginRight:'auto' }}>
                       <div style={{ fontSize:13.5,color:'var(--red)',fontWeight:600,marginBottom:10 }}>
                         ❌ Esa no era. La seña <strong>{targetLetter}</strong> es otra — inténtalo con una combinación nueva.
                       </div>
@@ -722,7 +723,7 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
         {/* ═══ BLOQUE HIGHLIGHT ══════════════════════════════════════ */}
         {b.type === 'highlight' && (
           <div key={step} className="anim-fade-up" style={{ padding:20 }}>
-            <div style={{ background:'var(--amb-d)',border:'1px solid rgba(245,166,35,.25)',borderRadius:12,padding:'16px 18px',display:'flex',gap:12 }}>
+            <div style={{ background:'var(--amb-d)',border:'1px solid var(--amb-b)',borderRadius:12,padding:'16px 18px',display:'flex',gap:12 }}>
               <div style={{ fontSize:20,flexShrink:0,marginTop:2 }}>{b.emoji}</div>
               <div style={{ fontSize:14,color:'var(--t2)',lineHeight:1.65 }}>{b.body}</div>
             </div>
@@ -777,7 +778,7 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
                 const isWrong   = quizAns === i    && i !== b.correct;
                 return (
                   <button key={i} onClick={() => quizAns === null && setQuizAns(i)}
-                    style={{ padding:'13px 16px',borderRadius:11,cursor:quizAns===null?'pointer':'default',textAlign:'left',fontSize:13.5,fontFamily:'inherit',transition:'.2s',background:isCorrect?'var(--grn-d)':isWrong?'rgba(240,80,80,.12)':'var(--card)',border:`${isCorrect||isWrong?1.5:1}px solid ${isCorrect?'var(--grn)':isWrong?'var(--red)':'var(--bdr)'}`,color:isCorrect?'var(--grn)':isWrong?'var(--red)':'var(--t2)' } as React.CSSProperties}>
+                    style={{ padding:'13px 16px',borderRadius:11,cursor:quizAns===null?'pointer':'default',textAlign:'left',fontSize:13.5,fontFamily:'inherit',transition:'.2s',background:isCorrect?'var(--grn-d)':isWrong?'var(--red-d)':'var(--card)',border:`${isCorrect||isWrong?1.5:1}px solid ${isCorrect?'var(--grn)':isWrong?'var(--red)':'var(--bdr)'}`,color:isCorrect?'var(--grn)':isWrong?'var(--red)':'var(--t2)' } as React.CSSProperties}>
                     <span style={{ marginRight:8 }}>{['A','B','C','D'][i]}.</span>{opt}
                     {isCorrect && <span style={{ float:'right' }}>✅</span>}
                     {isWrong   && <span style={{ float:'right' }}>❌</span>}
@@ -786,7 +787,7 @@ export function LessonDetailView({ lesson, onBack, onProgress, getForLesson, pro
               })}
             </div>
             {quizAns !== null && (
-              <div style={{ marginTop:14,padding:'13px 16px',borderRadius:11,background:quizAns===b.correct?'var(--grn-d)':'rgba(240,80,80,.1)',border:`1px solid ${quizAns===b.correct?'var(--grn)':'var(--red)'}`,fontSize:13,color:'var(--t2)',lineHeight:1.55 }}>
+              <div style={{ marginTop:14,padding:'13px 16px',borderRadius:11,background:quizAns===b.correct?'var(--grn-d)':'var(--red-d)',border:`1px solid ${quizAns===b.correct?'var(--grn)':'var(--red)'}`,fontSize:13,color:'var(--t2)',lineHeight:1.55 }}>
                 {quizAns === b.correct ? '✅ ' : '❌ '}{b.feedback}
               </div>
             )}

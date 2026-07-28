@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { api, type LessonFromAPI } from '../../src/lib/api';
 import { useProgress } from '../../src/hooks/useProgress';
-import { colors, radius, spacing } from '../../src/theme';
+import { colors, fonts, pressedStyle, radius, spacing } from '../../src/theme';
 import { glassStyle, PBar, Tag, LoadingView, ErrorBanner } from '../../src/components/UI';
 import { SignPractice } from '../../src/components/SignPractice';
 import { SIGN_IMAGES } from '../../src/lib/signImages';
@@ -235,20 +235,20 @@ export default function LessonDetailScreen() {
       <>
         <Stack.Screen options={screenOptions(lesson.title)} />
         <View style={styles.resumeWrap}>
-          <Text style={{ fontSize: 52 }}>⏸️</Text>
+          <Text style={{ fontSize: 52, fontFamily: fonts.regular }}>⏸️</Text>
           <Text style={styles.resumeTitle}>¿Retomar la lección?</Text>
           <Text style={styles.resumeSub}>{lesson.title}</Text>
           <Text style={styles.resumeInfo}>
             Te quedaste en el bloque {resumeStep + 1} de {total}{resumeExtra}
           </Text>
           <View style={styles.resumeButtons}>
-            <Pressable style={styles.primaryBtn} onPress={() => { setStep(resumeStep); setResumeDecided(true); }}>
+            <Pressable style={({ pressed }) => [styles.primaryBtn, pressed && pressedStyle]} onPress={() => { setStep(resumeStep); setResumeDecided(true); }}>
               <Text style={styles.primaryBtnText}>Continuar donde me quedé →</Text>
             </Pressable>
-            <Pressable style={styles.ghostBtn} onPress={() => { setStep(0); setResumeDecided(true); }}>
+            <Pressable style={({ pressed }) => [styles.ghostBtn, pressed && pressedStyle]} onPress={() => { setStep(0); setResumeDecided(true); }}>
               <Text style={styles.ghostBtnText}>Empezar de nuevo</Text>
             </Pressable>
-            <Pressable onPress={() => router.back()} style={styles.resumeBack}>
+            <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.resumeBack, pressed && pressedStyle]}>
               <Text style={styles.resumeBackText}>← Lecciones</Text>
             </Pressable>
           </View>
@@ -262,14 +262,14 @@ export default function LessonDetailScreen() {
       <>
         <Stack.Screen options={screenOptions(lesson.title)} />
         <View style={styles.doneWrap}>
-          <Text style={{ fontSize: 64 }}>🎉</Text>
+          <Text style={{ fontSize: 64, fontFamily: fonts.regular }}>🎉</Text>
           <Text style={styles.doneTitle}>¡Lección completada!</Text>
           <Text style={styles.doneSub}>{lesson.title}</Text>
           <View style={styles.doneButtons}>
-            <Pressable style={styles.ghostBtn} onPress={() => { setStep(0); setDone(false); }}>
+            <Pressable style={({ pressed }) => [styles.ghostBtn, pressed && pressedStyle]} onPress={() => { setStep(0); setDone(false); }}>
               <Text style={styles.ghostBtnText}>Repasar</Text>
             </Pressable>
-            <Pressable style={styles.primaryBtn} onPress={() => router.back()}>
+            <Pressable style={({ pressed }) => [styles.primaryBtn, pressed && pressedStyle]} onPress={() => router.back()}>
               <Text style={styles.primaryBtnText}>Volver a lecciones →</Text>
             </Pressable>
           </View>
@@ -283,9 +283,9 @@ export default function LessonDetailScreen() {
       <>
         <Stack.Screen options={screenOptions(lesson.title)} />
         <View style={[styles.pad, { alignItems: 'center', gap: spacing.md }]}>
-          <Text style={{ fontSize: 36 }}>📭</Text>
+          <Text style={{ fontSize: 36, fontFamily: fonts.regular }}>📭</Text>
           <Text style={styles.emptyText}>Esta lección aún no tiene contenido interactivo.</Text>
-          <Pressable style={styles.primaryBtn} onPress={() => router.back()}>
+          <Pressable style={({ pressed }) => [styles.primaryBtn, pressed && pressedStyle]} onPress={() => router.back()}>
             <Text style={styles.primaryBtnText}>← Volver</Text>
           </Pressable>
         </View>
@@ -339,7 +339,7 @@ export default function LessonDetailScreen() {
 
           {block.type === 'highlight' && (
             <View style={styles.highlightBox}>
-              <Text style={{ fontSize: 20 }}>{block.emoji}</Text>
+              <Text style={{ fontSize: 20, fontFamily: fonts.regular }}>{block.emoji}</Text>
               <Text style={[styles.blockBody, { flex: 1 }]}>{block.body}</Text>
             </View>
           )}
@@ -347,7 +347,7 @@ export default function LessonDetailScreen() {
           {block.type === 'tip' && (
             <View style={styles.tipBlock}>
               <View style={styles.tipHeader}>
-                <Text style={{ fontSize: 18 }}>{block.emoji}</Text>
+                <Text style={{ fontSize: 18, fontFamily: fonts.regular }}>{block.emoji}</Text>
                 <Text style={styles.tipTitle}>{block.title}</Text>
               </View>
               <Text style={styles.blockBody}>{block.body}</Text>
@@ -377,11 +377,11 @@ export default function LessonDetailScreen() {
                     key={i}
                     disabled={quizAns !== null}
                     onPress={() => setQuizAns(i)}
-                    style={[
+                    style={({ pressed }) => [
                       styles.quizOpt,
                       isCorrect && { backgroundColor: colors.greenBg, borderColor: colors.green },
                       isWrong   && { backgroundColor: colors.redBg,   borderColor: colors.red },
-                    ]}
+                    , pressed && pressedStyle]}
                   >
                     <Text style={[
                       styles.quizOptText,
@@ -463,11 +463,11 @@ export default function LessonDetailScreen() {
                           key={l}
                           disabled={answered}
                           onPress={() => answerFallbackQuiz(l, block.letter)}
-                          style={[
+                          style={({ pressed }) => [
                             styles.quizTile,
                             isWrong && { borderColor: colors.red },
                             answered && !isWrong && { opacity: 0.45 },
-                          ]}
+                          , pressed && pressedStyle]}
                         >
                           {SIGN_IMAGES[l] ? (
                             <Image source={SIGN_IMAGES[l]} style={styles.quizTileImg} resizeMode="contain" />
@@ -485,7 +485,7 @@ export default function LessonDetailScreen() {
                       <Text style={styles.quizWrongText}>
                         ❌ Esa no era. La seña {block.letter} es otra — inténtalo con una combinación nueva.
                       </Text>
-                      <Pressable style={styles.retryBtn} onPress={() => retryFallbackQuiz(block.letter)}>
+                      <Pressable style={({ pressed }) => [styles.retryBtn, pressed && pressedStyle]} onPress={() => retryFallbackQuiz(block.letter)}>
                         <Text style={styles.retryBtnText}>🔄 Otra combinación</Text>
                       </Pressable>
                     </View>
@@ -514,7 +514,7 @@ export default function LessonDetailScreen() {
                   />
 
                   {fallbackOffered && (
-                    <Pressable style={styles.fallbackBtn} onPress={() => openFallbackQuiz(block.letter)}>
+                    <Pressable style={({ pressed }) => [styles.fallbackBtn, pressed && pressedStyle]} onPress={() => openFallbackQuiz(block.letter)}>
                       <Text style={styles.fallbackBtnText}>🧩 ¿Se te complica? Practica de otra forma</Text>
                     </Pressable>
                   )}
@@ -531,14 +531,14 @@ export default function LessonDetailScreen() {
         {/* Botonera */}
         <View style={styles.footer}>
           <Pressable
-            style={[styles.ghostBtn, { opacity: step === 0 ? 0.4 : 1 }]}
+            style={({ pressed }) => [styles.ghostBtn, { opacity: step === 0 ? 0.4 : 1 }, pressed && pressedStyle]}
             disabled={step === 0}
             onPress={() => setStep(s => s - 1)}
           >
             <Text style={styles.ghostBtnText}>← Anterior</Text>
           </Pressable>
           <Pressable
-            style={[styles.primaryBtn, { flex: 1, opacity: nextDisabled ? 0.4 : 1 }]}
+            style={({ pressed }) => [styles.primaryBtn, { flex: 1, opacity: nextDisabled ? 0.4 : 1 }, pressed && pressedStyle]}
             disabled={nextDisabled}
             onPress={advance}
           >
@@ -563,12 +563,12 @@ const styles = StyleSheet.create({
     padding: spacing.xxl,
     gap: spacing.sm,
   },
-  resumeTitle: { fontSize: 21, fontWeight: '800', color: colors.text1, marginTop: spacing.sm },
-  resumeSub:   { fontSize: 13.5, color: colors.text2 },
-  resumeInfo:  { fontSize: 13, color: colors.text3, marginBottom: spacing.lg, textAlign: 'center' },
+  resumeTitle: { fontSize: 21, fontFamily: fonts.extrabold, fontWeight: '800', color: colors.text1, marginTop: spacing.sm },
+  resumeSub:   { fontSize: 13.5, fontFamily: fonts.regular, color: colors.text2 },
+  resumeInfo:  { fontSize: 13, fontFamily: fonts.regular, color: colors.text3, marginBottom: spacing.lg, textAlign: 'center' },
   resumeButtons: { width: '100%', maxWidth: 320, gap: spacing.sm },
   resumeBack:  { alignItems: 'center', paddingVertical: spacing.sm, marginTop: spacing.xs },
-  resumeBackText: { fontSize: 13, color: colors.text3, fontWeight: '600' },
+  resumeBackText: { fontSize: 13, fontFamily: fonts.semibold, color: colors.text3, fontWeight: '600' },
 
   // Banner tenue de repaso
   reviewBanner: {
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.tealBorder,
     alignItems: 'center',
   },
-  reviewBannerText: { fontSize: 12, color: colors.teal, fontWeight: '600' },
+  reviewBannerText: { fontSize: 12, fontFamily: fonts.semibold, color: colors.teal, fontWeight: '600' },
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -590,13 +590,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  stepCounter: { fontSize: 11, color: colors.text3, fontWeight: '600', minWidth: 36, textAlign: 'right' },
+  stepCounter: { fontSize: 11, fontFamily: fonts.semibold, color: colors.text3, fontWeight: '600', minWidth: 36, textAlign: 'right' },
 
   // Bloques de texto
   textBlock: { gap: spacing.md },
-  blockTitleAccent: { fontSize: 20, fontWeight: '800', color: colors.teal },
-  blockTitle: { fontSize: 17, fontWeight: '700', color: colors.text1 },
-  blockBody: { fontSize: 14.5, color: colors.text2, lineHeight: 24 },
+  blockTitleAccent: { fontSize: 20, fontFamily: fonts.extrabold, fontWeight: '800', color: colors.teal },
+  blockTitle: { fontSize: 17, fontFamily: fonts.bold, fontWeight: '700', color: colors.text1 },
+  blockBody: { fontSize: 14.5, fontFamily: fonts.regular, color: colors.text2, lineHeight: 24 },
   highlightBox: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -615,14 +615,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   tipHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  tipTitle: { fontWeight: '700', fontSize: 14, color: colors.teal },
+  tipTitle: { fontWeight: '700', fontSize: 14, fontFamily: fonts.bold, color: colors.teal },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   statBox: { flexGrow: 1, flexBasis: '45%', padding: spacing.lg, alignItems: 'center' },
-  statNumber: { fontSize: 24, fontWeight: '900', color: colors.teal, marginBottom: 4 },
-  statCaption: { fontSize: 11.5, color: colors.text3, textAlign: 'center', lineHeight: 16 },
+  statNumber: { fontSize: 24, fontFamily: fonts.extrabold, fontWeight: '900', color: colors.teal, marginBottom: 4 },
+  statCaption: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.text3, textAlign: 'center', lineHeight: 16 },
 
   // Quiz
-  quizQ: { fontWeight: '700', fontSize: 15.5, color: colors.text1, lineHeight: 22, marginVertical: spacing.sm },
+  quizQ: { fontWeight: '700', fontSize: 15.5, fontFamily: fonts.bold, color: colors.text1, lineHeight: 22, marginVertical: spacing.sm },
   quizOpt: {
     padding: 14,
     borderRadius: radius.md,
@@ -630,13 +630,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  quizOptText: { fontSize: 13.5, color: colors.text2, lineHeight: 19 },
+  quizOptText: { fontSize: 13.5, fontFamily: fonts.regular, color: colors.text2, lineHeight: 19 },
   quizFeedback: { padding: 14, borderRadius: radius.md, borderWidth: 1, marginTop: spacing.xs },
-  quizFeedbackText: { fontSize: 13, color: colors.text2, lineHeight: 19 },
+  quizFeedbackText: { fontSize: 13, fontFamily: fonts.regular, color: colors.text2, lineHeight: 19 },
 
   // Sign
   signHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.lg },
-  signLetterBig: { fontSize: 40, fontWeight: '900', color: colors.teal, lineHeight: 44 },
+  signLetterBig: { fontSize: 40, fontFamily: fonts.extrabold, fontWeight: '900', color: colors.teal, lineHeight: 44 },
   signThumb: {
     width: 64,
     height: 64,
@@ -645,16 +645,16 @@ const styles = StyleSheet.create({
     borderColor: colors.teal,
     backgroundColor: colors.text1,
   },
-  signName: { fontWeight: '700', fontSize: 17, color: colors.text1, marginBottom: 4 },
-  signDesc: { fontSize: 13, color: colors.text2, lineHeight: 19 },
+  signName: { fontWeight: '700', fontSize: 17, fontFamily: fonts.bold, color: colors.text1, marginBottom: 4 },
+  signDesc: { fontSize: 13, fontFamily: fonts.regular, color: colors.text2, lineHeight: 19 },
   signTipBox: {
     backgroundColor: colors.tealBg,
     borderRadius: radius.sm,
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
-  signTipText: { fontSize: 12, color: colors.teal, lineHeight: 17 },
-  signHint: { fontSize: 12.5, color: colors.text3, textAlign: 'center', lineHeight: 18 },
+  signTipText: { fontSize: 12, fontFamily: fonts.regular, color: colors.teal, lineHeight: 17 },
+  signHint: { fontSize: 12.5, fontFamily: fonts.regular, color: colors.text3, textAlign: 'center', lineHeight: 18 },
 
   // Éxito (desbloqueo por cámara o por quiz) — cámara ya apagada
   signDoneCard: {
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xl,
     alignItems: 'center',
   },
-  signDoneText: { fontSize: 15, fontWeight: '800', color: colors.green },
+  signDoneText: { fontSize: 15, fontFamily: fonts.extrabold, fontWeight: '800', color: colors.green },
 
   // Cuenta regresiva del fallback (discreta pero visible)
   countdownRow: { flexDirection: 'row', justifyContent: 'flex-end' },
@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   countdownPillWarn: { borderColor: colors.amber },
-  countdownText: { fontSize: 12, fontWeight: '700', color: colors.text3, fontVariant: ['tabular-nums'] },
+  countdownText: { fontSize: 12, fontFamily: fonts.bold, fontWeight: '700', color: colors.text3, fontVariant: ['tabular-nums'] },
 
   // Botón que ofrece el fallback
   fallbackBtn: {
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     alignItems: 'center',
   },
-  fallbackBtnText: { color: colors.bg, fontWeight: '700', fontSize: 13.5 },
+  fallbackBtnText: { color: colors.bg, fontWeight: '700', fontSize: 13.5, fontFamily: fonts.bold },
 
   // Mini-quiz visual (2x2 de imágenes grandes)
   quizCard: {
@@ -701,9 +701,9 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
-  quizTitle: { fontSize: 16, fontWeight: '700', color: colors.text1, textAlign: 'center', lineHeight: 22 },
+  quizTitle: { fontSize: 16, fontFamily: fonts.bold, fontWeight: '700', color: colors.text1, textAlign: 'center', lineHeight: 22 },
   quizTitleLetter: { color: colors.violet, fontWeight: '900' },
-  quizSub: { fontSize: 12.5, color: colors.text3, textAlign: 'center' },
+  quizSub: { fontSize: 12.5, fontFamily: fonts.regular, color: colors.text3, textAlign: 'center' },
   quizGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, justifyContent: 'center' },
   quizTile: {
     flexBasis: '46%',
@@ -718,8 +718,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   quizTileImg: { width: '100%', height: '100%' },
-  quizTileLetter: { fontSize: 56, fontWeight: '900', color: colors.teal },
-  quizTileX: { position: 'absolute', top: 6, right: 8, fontSize: 24 },
+  quizTileLetter: { fontSize: 56, fontFamily: fonts.extrabold, fontWeight: '900', color: colors.teal },
+  quizTileX: { position: 'absolute', top: 6, right: 8, fontSize: 24, fontFamily: fonts.regular },
   quizWrongBox: {
     backgroundColor: colors.redBg,
     borderWidth: 1,
@@ -728,7 +728,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.sm,
   },
-  quizWrongText: { fontSize: 13, color: colors.red, fontWeight: '600', lineHeight: 19 },
+  quizWrongText: { fontSize: 13, fontFamily: fonts.semibold, color: colors.red, fontWeight: '600', lineHeight: 19 },
   retryBtn: {
     borderWidth: 1,
     borderColor: colors.border2,
@@ -736,7 +736,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
   },
-  retryBtnText: { color: colors.text1, fontWeight: '600', fontSize: 13 },
+  retryBtnText: { color: colors.text1, fontWeight: '600', fontSize: 13, fontFamily: fonts.semibold },
 
   // Footer
   footer: {
@@ -748,14 +748,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg2,
   },
   primaryBtn: {
-    backgroundColor: colors.teal,
+    backgroundColor: colors.pri,
     borderRadius: radius.md,
     paddingVertical: 12,
     paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryBtnText: { color: colors.bg, fontWeight: '700', fontSize: 13.5 },
+  primaryBtnText: { color: colors.onPri, fontWeight: '700', fontSize: 13.5, fontFamily: fonts.bold },
   ghostBtn: {
     borderWidth: 1,
     borderColor: colors.border2,
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ghostBtnText: { color: colors.text1, fontWeight: '600', fontSize: 13.5 },
+  ghostBtnText: { color: colors.text1, fontWeight: '600', fontSize: 13.5, fontFamily: fonts.semibold },
 
   // Done / empty
   doneWrap: {
@@ -776,8 +776,8 @@ const styles = StyleSheet.create({
     padding: spacing.xxl,
     gap: spacing.sm,
   },
-  doneTitle: { fontSize: 24, fontWeight: '800', color: colors.text1 },
-  doneSub: { fontSize: 14, color: colors.text2 },
+  doneTitle: { fontSize: 24, fontFamily: fonts.extrabold, fontWeight: '800', color: colors.text1 },
+  doneSub: { fontSize: 14, fontFamily: fonts.regular, color: colors.text2 },
   doneButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl },
-  emptyText: { fontSize: 14, color: colors.text2, textAlign: 'center' },
+  emptyText: { fontSize: 14, fontFamily: fonts.regular, color: colors.text2, textAlign: 'center' },
 });

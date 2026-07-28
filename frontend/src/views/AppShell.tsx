@@ -8,6 +8,7 @@ import { LessonDetailView } from './LessonDetailView';
 import { ProfileView }      from './ProfileView';
 import { PracticeView }     from './PracticeView';
 import { AdminView }        from './AdminView';
+import { levelColors }      from '../theme';
 
 interface Props { user: UserProfile; onLogout: () => void; }
 
@@ -28,7 +29,7 @@ const SUBS: Record<AppView, string> = {
   practice:'Reconocimiento en tiempo real · MediaPipe', profile:'Tu cuenta y logros',
   admin:'Panel de administración',
 };
-const LCOLORS: Record<string,string> = {Básico:'#0ED2B8',Intermedio:'#9D7BF8',Avanzado:'#F5A623'};
+const LCOLORS: Record<string,string> = levelColors;
 
 // Nivel derivado del progreso real (no hay campo "nivel" separado en Postgres).
 function levelLabel(pct: number, completedCount: number): string {
@@ -65,7 +66,7 @@ export function AppShell({ user, onLogout }: Props) {
     <div style={{ display:'flex',height:'100vh',overflow:'hidden',background:'var(--bg)' }}>
       <aside style={{ width:220,flexShrink:0,background:'var(--bg2)',borderRight:'1px solid var(--bdr)',display:'flex',flexDirection:'column',padding:'10px 9px' }}>
         <div style={{ display:'flex',alignItems:'center',gap:9,padding:'8px 10px',marginBottom:14 }}>
-          <div style={{ width:32,height:32,borderRadius:9,background:'linear-gradient(135deg,#0ED2B8,#07A898)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,color:'#040D14',fontWeight:900,flexShrink:0 }}>S</div>
+          <div style={{ width:32,height:32,borderRadius:9,background:'var(--brand-grad)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,color:'var(--on-pri)',fontWeight:900,flexShrink:0 }}>S</div>
           <div>
             <div style={{ fontWeight:800,fontSize:13.5,lineHeight:1,letterSpacing:-0.3 }}>SeñasUTSCMX</div>
             <div style={{ fontSize:9.5,color:'var(--t3)',marginTop:1 }}>UTSC · 2026</div>
@@ -86,7 +87,7 @@ export function AppShell({ user, onLogout }: Props) {
         </nav>
         <div style={{ borderTop:'1px solid var(--bdr)',paddingTop:8,marginTop:6 }}>
           <div style={{ display:'flex',alignItems:'center',gap:9,padding:'8px 10px' }}>
-            <div style={{ width:30,height:30,borderRadius:'50%',background:'linear-gradient(135deg,#0ED2B8,#9D7BF8)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,color:'#040D14',flexShrink:0 }}>{initials}</div>
+            <div style={{ width:30,height:30,borderRadius:'50%',background:'var(--brand-grad)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,color:'var(--on-pri)',flexShrink:0 }}>{initials}</div>
             <div style={{ flex:1,minWidth:0 }}>
               <div style={{ fontSize:12,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{user.name.split(' ')[0]} {user.name.split(' ').slice(-1)[0]}</div>
               <div style={{ fontSize:10,color:'var(--t3)' }}>🔥 {streak}d · {globalProgress}%</div>
@@ -107,7 +108,7 @@ export function AppShell({ user, onLogout }: Props) {
                 : SUBS[view]}
             </div>
           </div>
-          <div style={{ background:'var(--amb-d)',border:'1px solid rgba(245,166,35,.22)',borderRadius:8,padding:'4px 10px',display:'flex',alignItems:'center',gap:5 }}>
+          <div style={{ background:'var(--amb-d)',border:'1px solid var(--amb-b)',borderRadius:8,padding:'4px 10px',display:'flex',alignItems:'center',gap:5 }}>
             <span style={{ fontSize:13 }}>🔥</span>
             <span style={{ fontSize:12,fontWeight:700,color:'var(--amb)' }}>{streak}</span>
           </div>

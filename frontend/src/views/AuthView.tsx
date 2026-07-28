@@ -69,7 +69,7 @@ export function AuthView({ mode, onLogin, onRegister, onBack, onSwitchMode }: Pr
         <div style={{ width:'100%', maxWidth:370 }}>
           {/* Logo */}
           <div style={{ textAlign:'center', marginBottom:26 }}>
-            <div style={{ width:50,height:50,borderRadius:13,margin:'0 auto 10px',background:'linear-gradient(135deg,#0ED2B8,#07A898)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,color:'#040D14',fontWeight:900 }}>S</div>
+            <div style={{ width:50,height:50,borderRadius:13,margin:'0 auto 10px',background:'var(--brand-grad)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,color:'var(--on-pri)',fontWeight:900 }}>S</div>
             <div style={{ fontWeight:800, fontSize:19 }}>SeñasUTSCMX</div>
             <div style={{ color:'var(--t3)', fontSize:13, marginTop:4 }}>
               {isLogin ? 'Inicia sesión en tu cuenta' : 'Crea tu cuenta gratuita'}
@@ -78,7 +78,7 @@ export function AuthView({ mode, onLogin, onRegister, onBack, onSwitchMode }: Pr
           {/* Tabs */}
           <div style={{ display:'flex',background:'var(--card)',border:'1px solid var(--bdr)',borderRadius:11,padding:3,marginBottom:20 }}>
             {['Iniciar sesión','Crear cuenta'].map((t,i) => (
-              <button key={t} onClick={()=>toggle(i===0)} style={{ flex:1,padding:'8px',border:'none',borderRadius:9,cursor:'pointer',fontSize:13,fontWeight:600,fontFamily:'inherit',transition:'.18s',background:(i===0)===isLogin?'linear-gradient(135deg,#0ED2B8,#07A898)':'transparent',color:(i===0)===isLogin?'#040D14':'var(--t3)' }}>
+              <button key={t} onClick={()=>toggle(i===0)} style={{ flex:1,padding:'8px',border:'none',borderRadius:9,cursor:'pointer',fontSize:13,fontWeight:600,fontFamily:'inherit',transition:'.18s',background:(i===0)===isLogin?'var(--brand-grad)':'transparent',color:(i===0)===isLogin?'var(--on-pri)':'var(--t3)' }}>
                 {t}
               </button>
             ))}
@@ -131,7 +131,7 @@ export function AuthView({ mode, onLogin, onRegister, onBack, onSwitchMode }: Pr
             )}
 
             {err && (
-              <div style={{ fontSize:12,color:'var(--red)',background:'rgba(240,80,80,.1)',borderRadius:8,padding:'8px 12px' }}>{err}</div>
+              <div style={{ fontSize:12,color:'var(--red)',background:'var(--red-d)',borderRadius:8,padding:'8px 12px' }}>{err}</div>
             )}
             <button className="btn-primary" style={{ width:'100%',justifyContent:'center',padding:'12px',fontSize:14,marginTop:2 }}
               onClick={handleSubmit} disabled={loading || (!isLogin && !canRegister)}>

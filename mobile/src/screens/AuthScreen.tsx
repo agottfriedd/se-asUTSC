@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { checkPassword, passwordError, allChecksPassed } from '../lib/passwordPolicy';
 import { emailError } from '../lib/emailValidation';
 import { PasswordStrengthMeter } from '../components/PasswordStrengthMeter';
-import { colors, radius, spacing } from '../theme';
+import { colors, fonts, pressedStyle, radius, spacing } from '../theme';
 
 interface Props {
   onLogin:    (email: string, pw: string) => Promise<void>;
@@ -102,7 +102,7 @@ export function AuthScreen({ onLogin, onRegister }: Props) {
                 <Pressable
                   key={t}
                   onPress={() => toggle(i === 0)}
-                  style={[styles.tab, active && styles.tabActive]}
+                  style={({ pressed }) => [styles.tab, active && styles.tabActive, pressed && pressedStyle]}
                 >
                   <Text style={[styles.tabText, active && styles.tabTextActive]}>{t}</Text>
                 </Pressable>
@@ -153,7 +153,7 @@ export function AuthScreen({ onLogin, onRegister }: Props) {
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
-                <Pressable style={styles.eye} onPress={() => setShowPw(v => !v)}>
+                <Pressable style={({ pressed }) => [styles.eye, pressed && pressedStyle]} onPress={() => setShowPw(v => !v)}>
                   <Text style={styles.eyeText}>{showPw ? '🙈' : '👁️'}</Text>
                 </Pressable>
               </View>
@@ -179,7 +179,7 @@ export function AuthScreen({ onLogin, onRegister }: Props) {
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
-                  <Pressable style={styles.eye} onPress={() => setShowConfirmPw(v => !v)}>
+                  <Pressable style={({ pressed }) => [styles.eye, pressed && pressedStyle]} onPress={() => setShowConfirmPw(v => !v)}>
                     <Text style={styles.eyeText}>{showConfirmPw ? '🙈' : '👁️'}</Text>
                   </Pressable>
                 </View>
@@ -199,12 +199,12 @@ export function AuthScreen({ onLogin, onRegister }: Props) {
             )}
 
             <Pressable
-              style={[styles.submit, registerDisabled && styles.submitDisabled]}
+              style={({ pressed }) => [styles.submit, registerDisabled && styles.submitDisabled, pressed && pressedStyle]}
               onPress={handleSubmit}
               disabled={registerDisabled}
             >
               {loading
-                ? <ActivityIndicator color="#040D14" />
+                ? <ActivityIndicator color={colors.onPri} />
                 : <Text style={styles.submitText}>{isLogin ? 'Iniciar sesión' : 'Crear cuenta'}</Text>}
             </Pressable>
           </View>
@@ -221,12 +221,12 @@ const styles = StyleSheet.create({
   logoWrap:     { alignItems: 'center', marginBottom: 26 },
   logoMark: {
     width: 50, height: 50, borderRadius: 13, marginBottom: 10,
-    backgroundColor: colors.teal,
+    backgroundColor: colors.pri,
     alignItems: 'center', justifyContent: 'center',
   },
-  logoMarkText: { fontSize: 24, color: '#040D14', fontWeight: '900' },
-  brand:        { fontWeight: '800', fontSize: 19, color: colors.text1 },
-  subtitle:     { color: colors.text3, fontSize: 13, marginTop: 4 },
+  logoMarkText: { fontSize: 24, fontFamily: fonts.extrabold, color: colors.onPri, fontWeight: '900' },
+  brand:        { fontWeight: '800', fontSize: 19, fontFamily: fonts.extrabold, color: colors.text1 },
+  subtitle:     { color: colors.text3, fontSize: 13, fontFamily: fonts.regular, marginTop: 4 },
 
   tabs: {
     flexDirection: 'row',
@@ -235,39 +235,39 @@ const styles = StyleSheet.create({
     borderRadius: 11, padding: 3, marginBottom: spacing.xl,
   },
   tab:        { flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center' },
-  tabActive:  { backgroundColor: colors.teal },
-  tabText:    { fontSize: 13, fontWeight: '600', color: colors.text3 },
-  tabTextActive: { color: '#040D14' },
+  tabActive:  { backgroundColor: colors.pri },
+  tabText:    { fontSize: 13, fontFamily: fonts.semibold, fontWeight: '600', color: colors.text3 },
+  tabTextActive: { color: colors.onPri },
 
-  label: { fontSize: 12, color: colors.text3, marginBottom: 5, fontWeight: '500' },
+  label: { fontSize: 12, fontFamily: fonts.medium, color: colors.text3, marginBottom: 5, fontWeight: '500' },
   input: {
     backgroundColor: colors.card,
     borderWidth: 1, borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: 13, paddingVertical: 11,
-    fontSize: 14, color: colors.text1,
+    fontSize: 14, fontFamily: fonts.regular, color: colors.text1,
   },
   inputPw: { paddingRight: 44 },
   pwWrap:  { position: 'relative', justifyContent: 'center' },
   eye:     { position: 'absolute', right: 6, padding: 6 },
-  eyeText: { fontSize: 15 },
+  eyeText: { fontSize: 15, fontFamily: fonts.regular },
 
-  hint: { fontSize: 11.5, marginTop: 5 },
+  hint: { fontSize: 11.5, fontFamily: fonts.regular, marginTop: 5 },
 
   errorBox: {
     backgroundColor: colors.redBg,
     borderRadius: radius.sm,
     paddingHorizontal: 12, paddingVertical: 8,
   },
-  errorText: { fontSize: 12, color: colors.red },
+  errorText: { fontSize: 12, fontFamily: fonts.regular, color: colors.red },
 
   submit: {
-    backgroundColor: colors.teal,
+    backgroundColor: colors.pri,
     borderRadius: radius.md,
     paddingVertical: 13,
     alignItems: 'center', justifyContent: 'center',
     marginTop: 2,
   },
   submitDisabled: { opacity: 0.5 },
-  submitText:     { color: '#040D14', fontWeight: '700', fontSize: 14 },
+  submitText:     { color: colors.onPri, fontWeight: '700', fontSize: 14, fontFamily: fonts.bold },
 });

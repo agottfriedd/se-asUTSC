@@ -18,7 +18,7 @@ import {
 import { Redirect, Stack, useRouter } from 'expo-router';
 import { useAuth } from '../src/hooks/useAuth';
 import { api, type AdminUser, type UserRoleAPI } from '../src/lib/api';
-import { colors, radius, spacing } from '../src/theme';
+import { colors, fonts, pressedStyle, radius, spacing } from '../src/theme';
 import { glassStyle, LoadingView, ErrorBanner } from '../src/components/UI';
 import { UserActionSheet, CreateUserModal, PasswordModal } from '../src/components/admin/UserAdminUI';
 
@@ -127,7 +127,7 @@ export default function AdminScreen() {
               <Text style={styles.title}>Gestión de usuarios</Text>
               <Text style={styles.subtitle}>{users.length} registrados · {filtered.length} en vista</Text>
             </View>
-            <Pressable style={styles.addBtn} onPress={() => setCreateOpen(true)}>
+            <Pressable style={({ pressed }) => [styles.addBtn, pressed && pressedStyle]} onPress={() => setCreateOpen(true)}>
               <Text style={styles.addBtnText}>➕ Añadir</Text>
             </Pressable>
           </View>
@@ -176,7 +176,7 @@ export default function AdminScreen() {
               const busy   = busyUid === u.uid;
               return (
                 <Pressable
-                  style={[glassStyle, styles.card, busy && { opacity: 0.5 }]}
+                  style={({ pressed }) => [glassStyle, styles.card, busy && { opacity: 0.5 }, pressed && pressedStyle]}
                   disabled={busy}
                   onPress={() => setSheetUser(u)}
                 >
@@ -260,7 +260,7 @@ function ChipRow<T extends string>({ value, onChange, options }: {
         const active = value === val;
         return (
           <Pressable key={val} onPress={() => onChange(val)}
-            style={[styles.chip, active && styles.chipActive]}>
+            style={({ pressed }) => [styles.chip, active && styles.chipActive, pressed && pressedStyle]}>
             <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
           </Pressable>
         );
@@ -290,45 +290,45 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 17, fontWeight: '800', color: colors.text1 },
-  subtitle: { fontSize: 12, color: colors.text3, marginTop: 2 },
-  addBtn: { backgroundColor: colors.teal, borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 14 },
-  addBtnText: { color: '#040D14', fontWeight: '700', fontSize: 13 },
+  title: { fontSize: 17, fontFamily: fonts.extrabold, fontWeight: '800', color: colors.text1 },
+  subtitle: { fontSize: 12, fontFamily: fonts.regular, color: colors.text3, marginTop: 2 },
+  addBtn: { backgroundColor: colors.pri, borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 14 },
+  addBtnText: { color: colors.onPri, fontWeight: '700', fontSize: 13, fontFamily: fonts.bold },
 
   search: {
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
     borderRadius: radius.md, paddingHorizontal: 13, paddingVertical: 9,
-    fontSize: 13.5, color: colors.text1,
+    fontSize: 13.5, fontFamily: fonts.regular, color: colors.text1,
   },
   chipRow: { flexDirection: 'row', gap: spacing.sm },
   chip: {
     paddingVertical: 5, paddingHorizontal: 13, borderRadius: radius.pill,
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
   },
-  chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
-  chipText: { fontSize: 12, fontWeight: '600', color: colors.text2 },
-  chipTextActive: { color: '#040D14' },
+  chipActive: { backgroundColor: colors.pri, borderColor: colors.priActive },
+  chipText: { fontSize: 12, fontFamily: fonts.semibold, fontWeight: '600', color: colors.text2 },
+  chipTextActive: { color: colors.onPri },
 
   errorWrap: { padding: spacing.md, paddingBottom: 0 },
 
   listContent: { padding: spacing.lg, gap: spacing.sm },
-  empty: { textAlign: 'center', color: colors.text3, fontSize: 13, paddingVertical: 40 },
+  empty: { textAlign: 'center', color: colors.text3, fontSize: 13, fontFamily: fonts.regular, paddingVertical: 40 },
 
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
   avatar: {
     width: 40, height: 40, borderRadius: 20, flexShrink: 0,
     backgroundColor: colors.violet, alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { fontSize: 14, fontWeight: '800', color: '#040D14' },
+  avatarText: { fontSize: 14, fontFamily: fonts.extrabold, fontWeight: '800', color: colors.onFill },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  name: { fontSize: 14, fontWeight: '700', color: colors.text1, flexShrink: 1 },
+  name: { fontSize: 14, fontFamily: fonts.bold, fontWeight: '700', color: colors.text1, flexShrink: 1 },
   youChip: {
-    fontSize: 9.5, fontWeight: '700', color: colors.teal,
+    fontSize: 9.5, fontFamily: fonts.bold, fontWeight: '700', color: colors.teal,
     backgroundColor: colors.tealBg, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, overflow: 'hidden',
   },
-  email: { fontSize: 12, color: colors.text3, marginTop: 2 },
+  email: { fontSize: 12, fontFamily: fonts.regular, color: colors.text3, marginTop: 2 },
   badges: { flexDirection: 'row', gap: 6, marginTop: 7 },
   badge: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: 7, paddingVertical: 2 },
-  badgeText: { fontSize: 10, fontWeight: '700' },
-  chevron: { fontSize: 22, color: colors.text3, marginLeft: spacing.xs },
+  badgeText: { fontSize: 10, fontFamily: fonts.bold, fontWeight: '700' },
+  chevron: { fontSize: 22, fontFamily: fonts.regular, color: colors.text3, marginLeft: spacing.xs },
 });

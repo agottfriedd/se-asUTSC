@@ -1,1 +1,61 @@
+# ─── Datos de entrenamiento (ya estaba: NO tocar) ───────────────
 ml-training/data/
+
+# ─── Dependencias ───────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ─── Salidas de build ───────────────────────────────────────────
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# ─── Expo / React Native ────────────────────────────────────────
+.expo/
+.expo-shared/
+mobile/ios/
+mobile/android/
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+
+# ─── Vite ───────────────────────────────────────────────────────
+.vite/
+
+# ─── Entorno y secretos ─────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Python (ml-service, ml-training) ───────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# ─── Logs ───────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── Cachés de herramientas ─────────────────────────────────────
+.cache/
+.parcel-cache/
+.eslintcache
+coverage/
+
+# ─── Sistema operativo / editor ─────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json

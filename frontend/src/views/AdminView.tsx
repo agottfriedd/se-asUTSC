@@ -6,6 +6,7 @@ import { LessonEditor } from './admin/LessonEditor';
 import { checkPassword, passwordError, allChecksPassed } from '../lib/passwordPolicy';
 import { emailError } from '../lib/emailValidation';
 import { PasswordStrengthMeter } from '../components/PasswordStrengthMeter';
+import { colors } from '../theme';
 
 interface Props { adminUser: UserProfile; }
 
@@ -14,7 +15,7 @@ type RoleFilter   = 'all' | 'student' | 'admin';
 type StatusFilter = 'all' | 'active' | 'disabled';
 
 const LEVEL_COLORS: Record<string, string> = {
-  BASICO: '#0ED2B8', INTERMEDIO: '#9D7BF8', AVANZADO: '#F5A623',
+  BASICO: colors.sec, INTERMEDIO: colors.priInk, AVANZADO: colors.navInk,
 };
 
 export function AdminView({ adminUser }: Props) {
@@ -107,8 +108,8 @@ export function AdminView({ adminUser }: Props) {
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '7px 15px', borderRadius: 10, cursor: 'pointer',
             fontSize: 13, fontWeight: 600, fontFamily: 'inherit', transition: '.15s',
-            background:   tab === t.id ? 'var(--teal)' : 'var(--card)',
-            color:        tab === t.id ? '#040D14'     : 'var(--t2)',
+            background:   tab === t.id ? 'var(--pri)'    : 'var(--card)',
+            color:        tab === t.id ? 'var(--on-pri)' : 'var(--t2)',
             border:       tab === t.id ? 'none'        : '1px solid var(--bdr)',
           } as React.CSSProperties}>
             {t.e} {t.label}
@@ -146,13 +147,13 @@ export function AdminView({ adminUser }: Props) {
             </div>
 
             {error && (
-              <div style={{ fontSize:12.5, color:'var(--red)', background:'var(--red-d)', border:'1px solid rgba(240,80,80,.3)', borderRadius:8, padding:'9px 13px', marginBottom:14 }}>
+              <div style={{ fontSize:12.5, color:'var(--red)', background:'var(--red-d)', border:'1px solid var(--red-b)', borderRadius:8, padding:'9px 13px', marginBottom:14 }}>
                 ⚠️ {error}
               </div>
             )}
 
             {loading ? (
-              <div style={{ textAlign:'center', padding:40, color:'var(--t3)' }}>Cargando usuarios…</div>
+              <div style={{ textAlign:'center', padding:40, color:'var(--t3)', animation:'breathe 1.6s ease-in-out infinite' }}>Cargando usuarios…</div>
             ) : filtered.length === 0 ? (
               <div style={{ textAlign:'center', padding:40, color:'var(--t3)' }}>
                 {users.length === 0 ? 'No hay usuarios (o el Admin SDK aún no está configurado).' : 'Ningún usuario coincide con los filtros.'}
@@ -166,7 +167,7 @@ export function AdminView({ adminUser }: Props) {
                     <div key={u.uid} className="glass" style={{ padding:'12px 15px', opacity: busy ? 0.55 : 1, transition:'opacity .15s' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
                         {/* Avatar */}
-                        <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, background:'linear-gradient(135deg,#0ED2B8,#9D7BF8)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:800, color:'#040D14' }}>
+                        <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, background:'var(--brand-grad)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:800, color:'var(--on-pri)' }}>
                           {(u.name || u.email || '?').slice(0,2).toUpperCase()}
                         </div>
                         {/* Info */}
@@ -243,9 +244,9 @@ export function AdminView({ adminUser }: Props) {
             <div style={{ fontWeight:700, fontSize:17, marginBottom:16 }}>Panel de administración</div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:24 }}>
               {[
-                { e:'👥', v: users.length || '—', l:'Usuarios registrados', c:'#0ED2B8' },
-                { e:'⚙️', v: users.filter(u=>u.role==='admin').length || '—', l:'Administradores', c:'#F5A623' },
-                { e:'🚫', v: users.filter(u=>u.disabled).length, l:'Cuentas inactivas', c:'#F05050' },
+                { e:'👥', v: users.length || '—', l:'Usuarios registrados', c:colors.priInk },
+                { e:'⚙️', v: users.filter(u=>u.role==='admin').length || '—', l:'Administradores', c:colors.amber },
+                { e:'🚫', v: users.filter(u=>u.disabled).length, l:'Cuentas inactivas', c:colors.red },
               ].map(({ e,v,l,c }) => (
                 <div key={l} className="glass" style={{ padding:16, textAlign:'center' }}>
                   <div style={{ fontSize:22, marginBottom:6 }}>{e}</div>
@@ -288,25 +289,25 @@ export function AdminView({ adminUser }: Props) {
             </div>
 
             {lessonsError && (
-              <div style={{ fontSize:12.5, color:'var(--red)', background:'var(--red-d)', border:'1px solid rgba(240,80,80,.3)', borderRadius:8, padding:'9px 13px', marginBottom:14 }}>
+              <div style={{ fontSize:12.5, color:'var(--red)', background:'var(--red-d)', border:'1px solid var(--red-b)', borderRadius:8, padding:'9px 13px', marginBottom:14 }}>
                 ⚠️ {lessonsError}
               </div>
             )}
 
             {loadingLessons ? (
-              <div style={{ textAlign:'center', padding:32, color:'var(--t3)' }}>Cargando…</div>
+              <div style={{ textAlign:'center', padding:32, color:'var(--t3)', animation:'breathe 1.6s ease-in-out infinite' }}>Cargando…</div>
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:9 }}>
                 {lessons.map(l => {
                   const inactive = l.active === false;
                   return (
                   <div key={l.id} className="glass" style={{ padding:'12px 15px', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap', opacity: inactive ? 0.6 : 1 }}>
-                    <div style={{ width:32, height:32, borderRadius:8, flexShrink:0, background: `${LEVEL_COLORS[l.level] ?? '#0ED2B8'}18`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, color: LEVEL_COLORS[l.level] ?? '#0ED2B8' }}>{l.order}</div>
+                    <div style={{ width:32, height:32, borderRadius:8, flexShrink:0, background: `${LEVEL_COLORS[l.level] ?? colors.priInk}18`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, color: LEVEL_COLORS[l.level] ?? colors.priInk }}>{l.order}</div>
                     <div style={{ flex:1, minWidth:120 }}>
                       <div style={{ fontWeight:600, fontSize:13.5 }}>{l.title}</div>
                       <div style={{ fontSize:11, color:'var(--t3)' }}>{l.level} · {l.duration} min · {l.modules} módulos</div>
                     </div>
-                    <span className="tag" style={{ fontSize:10, background: inactive ? 'var(--red-d)' : '#22C97E18', color: inactive ? 'var(--red)' : '#22C97E' }}>
+                    <span className="tag" style={{ fontSize:10, background: inactive ? 'var(--red-d)' : 'var(--grn-d)', color: inactive ? 'var(--red)' : 'var(--grn)' }}>
                       {inactive ? '🚫 Inactiva' : l.locked ? '🔒 Bloqueada' : '✅ Activa'}
                     </span>
                     <div style={{ display:'flex', gap:7 }}>
@@ -354,7 +355,7 @@ export function AdminView({ adminUser }: Props) {
 // ── Overlay base ───────────────────────────────────────────────────
 function Overlay({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(4,8,14,.72)', backdropFilter:'blur(3px)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+    <div style={{ position:'fixed', inset:0, zIndex:200, background:'var(--scrim)', backdropFilter:'blur(3px)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
       <div className="anim-fade-up" style={{ width:'100%', maxWidth:400, background:'var(--bg2)', border:'1px solid var(--bdr)', borderRadius:16, padding:22 }}>
         {children}
       </div>

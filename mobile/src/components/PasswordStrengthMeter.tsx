@@ -6,7 +6,7 @@ import {
   checkPassword, passwordStrength, REQUIREMENT_ITEMS,
 } from '../lib/passwordPolicy';
 import type { PasswordStrength } from '../lib/passwordPolicy';
-import { colors } from '../theme';
+import { colors, fonts } from '../theme';
 
 const STRENGTH_LABEL: Record<PasswordStrength, string> = {
   weak: 'Débil', medium: 'Media', strong: 'Fuerte',
@@ -65,8 +65,8 @@ const styles = StyleSheet.create({
   strengthRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   strengthBars: { flex: 1, flexDirection: 'row', gap: 4 },
   strengthBar:  { flex: 1, height: 4, borderRadius: 2 },
-  strengthLabel:{ fontSize: 11, fontWeight: '700', minWidth: 38, textAlign: 'right' },
+  strengthLabel:{ fontSize: 11, fontFamily: fonts.bold, fontWeight: '700', minWidth: 38, textAlign: 'right' },
   reqRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  reqIcon: { fontSize: 11 },
-  reqText: { fontSize: 11.5 },
+  reqIcon: { fontSize: 11, fontFamily: fonts.regular },
+  reqText: { fontSize: 11.5, fontFamily: fonts.regular },
 });

@@ -5,19 +5,23 @@ export default {
   theme: {
     extend: {
       colors: {
-        teal: {
-          DEFAULT: '#0ED2B8',
-          dark: '#07A898',
+        // Identidad UTSC — mismos valores que :root en src/index.css.
+        pri: {
+          DEFAULT: '#FF8300',   // naranja de marca: solo relleno
+          hover:   '#EE7A00',
+          active:  '#D66D00',
+          ink:     '#AD4E00',   // naranja como texto (AA sobre claro)
         },
-        violet: {
-          DEFAULT: '#9D7BF8',
+        sec: {
+          DEFAULT: '#0C7669',   // turquesa como texto (AA sobre claro)
+          brand:   '#49C2B3',   // turquesa de marca: solo relleno
         },
-        amber: {
-          DEFAULT: '#F5A623',
+        navy: {
+          DEFAULT: '#30466F',
         },
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['Poppins', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
     },
   },

@@ -11,7 +11,7 @@ import {
   ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { colors, radius, spacing } from '../../theme';
+import { colors, fonts, pressedStyle, radius, spacing } from '../../theme';
 import type { AdminUser, UserRoleAPI } from '../../lib/api';
 import { checkPassword, passwordError, allChecksPassed } from '../../lib/passwordPolicy';
 import { emailError } from '../../lib/emailValidation';
@@ -80,7 +80,7 @@ export function UserActionSheet({
             onPress={onDelete}
           />
 
-          <Pressable style={styles.cancelBtn} onPress={onClose}>
+          <Pressable style={({ pressed }) => [styles.cancelBtn, pressed && pressedStyle]} onPress={onClose}>
             <Text style={styles.cancelText}>Cancelar</Text>
           </Pressable>
         </View>
@@ -95,7 +95,7 @@ function SheetButton({ label, onPress, danger, disabled, note }: {
   return (
     <View>
       <Pressable
-        style={[styles.sheetBtn, disabled && styles.sheetBtnDisabled]}
+        style={({ pressed }) => [styles.sheetBtn, disabled && styles.sheetBtnDisabled, pressed && pressedStyle]}
         disabled={disabled}
         onPress={onPress}
       >
@@ -170,7 +170,7 @@ export function CreateUserModal({ onClose, onSubmit }: {
         <View style={styles.roleRow}>
           {(['student', 'admin'] as const).map(r => (
             <Pressable key={r} onPress={() => setRole(r)}
-              style={[styles.roleChip, role === r && styles.roleChipActive]}>
+              style={({ pressed }) => [styles.roleChip, role === r && styles.roleChipActive, pressed && pressedStyle]}>
               <Text style={[styles.roleChipText, role === r && styles.roleChipTextActive]}>
                 {r === 'admin' ? '⚙️ Admin' : '🎓 Student'}
               </Text>
@@ -224,7 +224,7 @@ export function PasswordModal({ userName, onClose, onSubmit }: {
     <FormModal title="🔑 Cambiar contraseña" onClose={onClose}>
       {success ? (
         <View style={styles.successWrap}>
-          <Text style={{ fontSize: 40 }}>✅</Text>
+          <Text style={{ fontSize: 40, fontFamily: fonts.regular }}>✅</Text>
           <Text style={styles.successTitle}>Contraseña actualizada correctamente</Text>
           <Text style={styles.formSub}>Nueva contraseña de {userName}.</Text>
         </View>
@@ -248,11 +248,11 @@ function FormActions({ submitting, submitLabel, onCancel, onSubmit, disabled }: 
   const blocked = submitting || disabled;
   return (
     <View style={styles.formActions}>
-      <Pressable style={styles.ghostBtn} onPress={onCancel} disabled={submitting}>
+      <Pressable style={({ pressed }) => [styles.ghostBtn, pressed && pressedStyle]} onPress={onCancel} disabled={submitting}>
         <Text style={styles.ghostBtnText}>Cancelar</Text>
       </Pressable>
-      <Pressable style={[styles.primaryBtn, blocked && { opacity: 0.5 }]} onPress={onSubmit} disabled={blocked}>
-        {submitting ? <ActivityIndicator color="#040D14" /> : <Text style={styles.primaryBtnText}>{submitLabel}</Text>}
+      <Pressable style={({ pressed }) => [styles.primaryBtn, blocked && { opacity: 0.5 }, pressed && pressedStyle]} onPress={onSubmit} disabled={blocked}>
+        {submitting ? <ActivityIndicator color={colors.onPri} /> : <Text style={styles.primaryBtnText}>{submitLabel}</Text>}
       </Pressable>
     </View>
   );
@@ -260,7 +260,7 @@ function FormActions({ submitting, submitLabel, onCancel, onSubmit, disabled }: 
 
 const styles = StyleSheet.create({
   // Bottom sheet
-  sheetRoot: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(4,8,14,0.6)' },
+  sheetRoot: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.scrim },
   sheet: {
     backgroundColor: colors.bg2,
     borderTopLeftRadius: radius.xl,
@@ -276,9 +276,9 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20, backgroundColor: colors.violet,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { fontSize: 14, fontWeight: '800', color: '#040D14' },
-  sheetName:  { fontSize: 15, fontWeight: '700', color: colors.text1 },
-  sheetEmail: { fontSize: 12, color: colors.text3, marginTop: 2 },
+  avatarText: { fontSize: 14, fontFamily: fonts.extrabold, fontWeight: '800', color: colors.onFill },
+  sheetName:  { fontSize: 15, fontFamily: fonts.bold, fontWeight: '700', color: colors.text1 },
+  sheetEmail: { fontSize: 12, fontFamily: fonts.regular, color: colors.text3, marginTop: 2 },
 
   sheetBtn: {
     paddingVertical: 13, paddingHorizontal: spacing.md,
@@ -286,47 +286,47 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   sheetBtnDisabled: { opacity: 0.5 },
-  sheetBtnText: { fontSize: 14, fontWeight: '600', color: colors.text1 },
-  sheetNote: { fontSize: 10.5, color: colors.text3, marginTop: 3, marginBottom: 2, paddingHorizontal: spacing.xs },
+  sheetBtnText: { fontSize: 14, fontFamily: fonts.semibold, fontWeight: '600', color: colors.text1 },
+  sheetNote: { fontSize: 10.5, fontFamily: fonts.regular, color: colors.text3, marginTop: 3, marginBottom: 2, paddingHorizontal: spacing.xs },
 
   cancelBtn: { paddingVertical: 13, alignItems: 'center', marginTop: spacing.sm },
-  cancelText: { fontSize: 14, fontWeight: '600', color: colors.text3 },
+  cancelText: { fontSize: 14, fontFamily: fonts.semibold, fontWeight: '600', color: colors.text3 },
 
   // Form modal
-  formRoot: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl, backgroundColor: 'rgba(4,8,14,0.6)' },
+  formRoot: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl, backgroundColor: colors.scrim },
   formCard: {
     width: '100%', maxWidth: 400,
     backgroundColor: colors.bg2, borderWidth: 1, borderColor: colors.border,
     borderRadius: radius.xl, padding: spacing.xl,
   },
-  formTitle: { fontSize: 16, fontWeight: '800', color: colors.text1, marginBottom: spacing.md },
-  formSub:   { fontSize: 12.5, color: colors.text3, marginBottom: spacing.md },
+  formTitle: { fontSize: 16, fontFamily: fonts.extrabold, fontWeight: '800', color: colors.text1, marginBottom: spacing.md },
+  formSub:   { fontSize: 12.5, fontFamily: fonts.regular, color: colors.text3, marginBottom: spacing.md },
   successWrap:  { alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.md },
-  successTitle: { fontSize: 15, fontWeight: '800', color: colors.green, textAlign: 'center' },
+  successTitle: { fontSize: 15, fontFamily: fonts.extrabold, fontWeight: '800', color: colors.green, textAlign: 'center' },
   input: {
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
     borderRadius: radius.md, paddingHorizontal: 13, paddingVertical: 11,
-    fontSize: 14, color: colors.text1,
+    fontSize: 14, fontFamily: fonts.regular, color: colors.text1,
   },
   roleRow: { flexDirection: 'row', gap: spacing.sm },
   roleChip: {
     flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: radius.md,
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
   },
-  roleChipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
-  roleChipText: { fontSize: 13, fontWeight: '600', color: colors.text2 },
-  roleChipTextActive: { color: '#040D14' },
+  roleChipActive: { backgroundColor: colors.pri, borderColor: colors.priActive },
+  roleChipText: { fontSize: 13, fontFamily: fonts.semibold, fontWeight: '600', color: colors.text2 },
+  roleChipTextActive: { color: colors.onPri },
 
-  formErr: { fontSize: 12, color: colors.red, marginTop: spacing.sm },
+  formErr: { fontSize: 12, fontFamily: fonts.regular, color: colors.red, marginTop: spacing.sm },
   formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, marginTop: spacing.lg },
   primaryBtn: {
-    backgroundColor: colors.teal, borderRadius: radius.md,
+    backgroundColor: colors.pri, borderRadius: radius.md,
     paddingVertical: 11, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', minWidth: 110,
   },
-  primaryBtnText: { color: '#040D14', fontWeight: '700', fontSize: 13.5 },
+  primaryBtnText: { color: colors.onPri, fontWeight: '700', fontSize: 13.5, fontFamily: fonts.bold },
   ghostBtn: {
     borderWidth: 1, borderColor: colors.border2, borderRadius: radius.md,
     paddingVertical: 11, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center',
   },
-  ghostBtnText: { color: colors.text1, fontWeight: '600', fontSize: 13.5 },
+  ghostBtnText: { color: colors.text1, fontWeight: '600', fontSize: 13.5, fontFamily: fonts.semibold },
 });

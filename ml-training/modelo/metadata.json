@@ -1,0 +1,38 @@
+{
+  "creado": "2026-07-28T15:15:04",
+  "modelo": "SVM (RBF)",
+  "representacion": "C · world crudo",
+  "accuracy_cv": 0.9547,
+  "particion": "StratifiedGroupKFold por sesion",
+  "letras": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "K",
+    "L",
+    "M",
+    "N",
+    "O",
+    "P",
+    "R",
+    "S",
+    "T",
+    "U",
+    "V",
+    "W",
+    "Y"
+  ],
+  "n_muestras": 13339,
+  "n_sesiones": 15,
+  "sujetos": [
+    "adrian"
+  ],
+  "n_features": 63,
+  "letras_en_menos_de_3_sesiones": []
+}

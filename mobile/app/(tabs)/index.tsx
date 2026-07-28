@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { api, type LessonFromAPI } from '../../src/lib/api';
 import { useAuth } from '../../src/hooks/useAuth';
 import { useProgress } from '../../src/hooks/useProgress';
-import { colors, spacing } from '../../src/theme';
+import { colors, fonts, pressedStyle, spacing } from '../../src/theme';
 import { glassStyle, PBar, StatCard, LoadingView, ErrorBanner } from '../../src/components/UI';
 
 // Portado de frontend/src/views/DashboardView.tsx
@@ -84,7 +84,7 @@ export default function InicioScreen() {
               return (
                 <Pressable
                   key={l.id}
-                  style={[glassStyle, styles.lessonRow]}
+                  style={({ pressed }) => [glassStyle, styles.lessonRow, pressed && pressedStyle]}
                   onPress={() => router.push({ pathname: '/lesson/[id]', params: { id: String(l.id) } })}
                 >
                   <View style={styles.lessonRowTop}>
@@ -108,12 +108,12 @@ export default function InicioScreen() {
       <View>
         <Text style={styles.sectionTitle}>Acceso rápido</Text>
         <View style={styles.quickGrid}>
-          <Pressable style={[glassStyle, styles.quickCard]} onPress={() => router.push('/dictionary')}>
+          <Pressable style={({ pressed }) => [glassStyle, styles.quickCard, pressed && pressedStyle]} onPress={() => router.push('/dictionary')}>
             <Text style={styles.quickIcon}>📖</Text>
             <Text style={styles.quickLabel}>Diccionario</Text>
             <Text style={styles.quickSub}>{signCount ?? '—'} señas</Text>
           </Pressable>
-          <Pressable style={[glassStyle, styles.quickCard]} onPress={() => router.push('/lessons')}>
+          <Pressable style={({ pressed }) => [glassStyle, styles.quickCard, pressed && pressedStyle]} onPress={() => router.push('/lessons')}>
             <Text style={styles.quickIcon}>🎓</Text>
             <Text style={styles.quickLabel}>Lecciones</Text>
             <Text style={styles.quickSub}>{lessons.length} módulos</Text>
@@ -127,8 +127,8 @@ export default function InicioScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.xl },
-  greeting: { fontSize: 21, fontWeight: '800', color: colors.text1, marginBottom: 3 },
-  streakLine: { fontSize: 13, color: colors.text3 },
+  greeting: { fontSize: 21, fontFamily: fonts.extrabold, fontWeight: '800', color: colors.text1, marginBottom: 3 },
+  streakLine: { fontSize: 13, fontFamily: fonts.regular, color: colors.text3 },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -142,10 +142,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 9,
   },
-  progressLabel: { fontWeight: '700', fontSize: 13.5, color: colors.text1 },
-  progressPct: { fontSize: 13, color: colors.teal, fontWeight: '700' },
-  progressSub: { fontSize: 11.5, color: colors.text3, marginTop: 7 },
-  sectionTitle: { fontWeight: '700', fontSize: 14, color: colors.text1, marginBottom: spacing.md },
+  progressLabel: { fontWeight: '700', fontSize: 13.5, fontFamily: fonts.bold, color: colors.text1 },
+  progressPct: { fontSize: 13, fontFamily: fonts.bold, color: colors.teal, fontWeight: '700' },
+  progressSub: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.text3, marginTop: 7 },
+  sectionTitle: { fontWeight: '700', fontSize: 14, fontFamily: fonts.bold, color: colors.text1, marginBottom: spacing.md },
   lessonRow: { padding: 14 },
   lessonRowTop: {
     flexDirection: 'row',
@@ -153,14 +153,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: spacing.sm,
   },
-  lessonTitle: { fontWeight: '600', fontSize: 13.5, color: colors.text1 },
-  lessonDesc: { fontSize: 11.5, color: colors.text3, marginTop: 2 },
-  chevron: { color: colors.text3, fontSize: 18 },
+  lessonTitle: { fontWeight: '600', fontSize: 13.5, fontFamily: fonts.semibold, color: colors.text1 },
+  lessonDesc: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.text3, marginTop: 2 },
+  chevron: { color: colors.text3, fontSize: 18, fontFamily: fonts.regular },
   lessonProgressRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  lessonPct: { fontSize: 11, color: colors.text3, fontWeight: '600', minWidth: 28 },
+  lessonPct: { fontSize: 11, fontFamily: fonts.semibold, color: colors.text3, fontWeight: '600', minWidth: 28 },
   quickGrid: { flexDirection: 'row', gap: spacing.sm },
   quickCard: { flex: 1, padding: spacing.lg, alignItems: 'center' },
-  quickIcon: { fontSize: 24, marginBottom: 7 },
-  quickLabel: { fontWeight: '600', fontSize: 13.5, color: colors.text1 },
-  quickSub: { fontSize: 11, color: colors.text3, marginTop: 3 },
+  quickIcon: { fontSize: 24, fontFamily: fonts.regular, marginBottom: 7 },
+  quickLabel: { fontWeight: '600', fontSize: 13.5, fontFamily: fonts.semibold, color: colors.text1 },
+  quickSub: { fontSize: 11, fontFamily: fonts.regular, color: colors.text3, marginTop: 3 },
 });

@@ -3,6 +3,7 @@ import { api, apiLevelToLabel } from '../lib/api';
 import type { LessonFromAPI } from '../lib/api';
 import type { AppView, Lesson, LessonProgress } from '../types';
 import { PBar } from '../components/UI';
+import { levelColors } from '../theme';
 
 interface Props {
   nav: (view: AppView, payload?: Lesson) => void;
@@ -10,7 +11,7 @@ interface Props {
 }
 
 const TABS = ['Todos','Básico','Intermedio','Avanzado'] as const;
-const LCOLORS: Record<string,string> = { Básico:'#0ED2B8', Intermedio:'#9D7BF8', Avanzado:'#F5A623' };
+const LCOLORS: Record<string,string> = levelColors;
 
 export function LessonsView({ nav, getForLesson }: Props) {
   const [lessons, setLessons] = useState<LessonFromAPI[]>([]);
@@ -42,7 +43,7 @@ export function LessonsView({ nav, getForLesson }: Props) {
   if (loading) return (
     <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--t3)' }}>
       <div style={{ textAlign:'center' }}>
-        <div style={{ fontSize:32,marginBottom:10 }}>⏳</div>
+        <div style={{ fontSize:32,marginBottom:10,animation:'breathe 1.6s ease-in-out infinite' }}>⏳</div>
         <div>Cargando lecciones…</div>
       </div>
     </div>
@@ -63,8 +64,8 @@ export function LessonsView({ nav, getForLesson }: Props) {
           <button key={t} onClick={()=>setTab(t)} style={{
             padding:'6px 14px',borderRadius:20,cursor:'pointer',
             fontSize:12.5,fontWeight:600,fontFamily:'inherit',transition:'.15s',
-            background:tab===t?(LCOLORS[t]||'var(--teal)'):'var(--card)',
-            color:tab===t?'#040D14':'var(--t2)',
+            background:tab===t?(LCOLORS[t]||'var(--t1)'):'var(--card)',
+            color:tab===t?'var(--on-fill)':'var(--t2)',
             border:tab===t?'none':'1px solid var(--bdr)',
           }}>
             {t}

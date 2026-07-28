@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { colors, fonts, pressedStyle } from '../../src/theme';
 import { useFocusEffect } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
@@ -144,7 +145,7 @@ export default function PracticeScreen() {
   if (!permission) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#fff" />
+        <ActivityIndicator size="large" color={colors.inkT1} />
       </View>
     );
   }
@@ -157,7 +158,7 @@ export default function PracticeScreen() {
         <Text style={styles.subtitle}>
           Necesitamos acceso a la cámara para reconocer las señas.
         </Text>
-        <Pressable style={styles.button} onPress={requestPermission}>
+        <Pressable style={({ pressed }) => [styles.button, pressed && pressedStyle]} onPress={requestPermission}>
           <Text style={styles.buttonText}>Dar permiso</Text>
         </Pressable>
       </View>
@@ -214,13 +215,13 @@ export default function PracticeScreen() {
             </>
           ) : (
             <>
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={colors.inkT1} />
               <Text style={styles.hint}>Analizando…</Text>
             </>
           )}
         </View>
 
-        <Pressable style={styles.toggle} onPress={() => setRunning((r) => !r)}>
+        <Pressable style={({ pressed }) => [styles.toggle, pressed && pressedStyle]} onPress={() => setRunning((r) => !r)}>
           <Text style={styles.toggleText}>
             {running ? 'Pausar' : 'Reanudar'}
           </Text>
@@ -231,10 +232,10 @@ export default function PracticeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: colors.ink },
   center: {
     flex: 1,
-    backgroundColor: '#111',
+    backgroundColor: colors.ink2,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -248,39 +249,39 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   banner: {
-    backgroundColor: 'rgba(200,40,40,0.9)',
+    backgroundColor: colors.red,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 12,
   },
-  bannerText: { color: '#fff', textAlign: 'center', fontWeight: '600' },
+  bannerText: { color: colors.onFill, textAlign: 'center', fontWeight: '600' },
   resultCard: {
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.camVeil,
     borderRadius: 20,
     paddingVertical: 24,
     paddingHorizontal: 20,
     alignItems: 'center',
     gap: 6,
   },
-  letter: { color: '#fff', fontSize: 88, fontWeight: '800', lineHeight: 96 },
-  confidence: { color: '#9fe', fontSize: 20, fontWeight: '600' },
-  hint: { color: '#ccc', fontSize: 16 },
-  title: { color: '#fff', fontSize: 24, fontWeight: '700' },
-  subtitle: { color: '#bbb', fontSize: 15, textAlign: 'center' },
+  letter: { color: colors.inkT1, fontSize: 88, fontFamily: fonts.extrabold, fontWeight: '800', lineHeight: 96 },
+  confidence: { color: colors.inkPri, fontSize: 20, fontFamily: fonts.semibold, fontWeight: '600' },
+  hint: { color: colors.inkT2, fontSize: 16, fontFamily: fonts.regular },
+  title: { color: colors.inkT1, fontSize: 24, fontFamily: fonts.bold, fontWeight: '700' },
+  subtitle: { color: colors.inkT2, fontSize: 15, fontFamily: fonts.regular, textAlign: 'center' },
   button: {
     marginTop: 12,
-    backgroundColor: '#2f6fed',
+    backgroundColor: colors.pri,
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 12,
   },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  buttonText: { color: colors.onPri, fontSize: 16, fontFamily: fonts.bold, fontWeight: '700' },
   toggle: {
     alignSelf: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: colors.camChip,
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 24,
   },
-  toggleText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  toggleText: { color: colors.inkT1, fontSize: 15, fontFamily: fonts.semibold, fontWeight: '600' },
 });

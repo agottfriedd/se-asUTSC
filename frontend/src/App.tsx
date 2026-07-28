@@ -15,7 +15,7 @@ export default function App() {
         background: 'var(--bg)', flexDirection: 'column', gap: 14,
       }}>
         <div style={{ fontSize: 36 }}>🤟</div>
-        <div style={{ fontSize: 14, color: 'var(--t3)' }}>Cargando SeñasUTSCMX…</div>
+        <div style={{ fontSize: 14, color: 'var(--t3)', animation:'breathe 1.6s ease-in-out infinite' }}>Cargando SeñasUTSCMX…</div>
       </div>
     );
   }

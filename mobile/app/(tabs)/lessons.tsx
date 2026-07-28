@@ -3,7 +3,7 @@ import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api, apiLevelToLabel, type LessonFromAPI } from '../../src/lib/api';
 import { useProgress } from '../../src/hooks/useProgress';
-import { colors, levelColors, radius, spacing } from '../../src/theme';
+import { colors, fonts, levelColors, pressedStyle, radius, spacing } from '../../src/theme';
 import { glassStyle, PBar, Tag, LoadingView, ErrorBanner } from '../../src/components/UI';
 import type { LessonLevel } from '../../src/types';
 
@@ -60,14 +60,14 @@ export default function LessonsScreen() {
       <View style={styles.tabsRow}>
         {TABS.map(t => {
           const active = tab === t;
-          const color = t === 'Todos' ? colors.teal : levelColors[t];
+          const color = t === 'Todos' ? colors.text1 : levelColors[t];
           return (
             <Pressable
               key={t}
               onPress={() => setTab(t)}
-              style={[styles.tab, { backgroundColor: active ? color : colors.card, borderColor: active ? color : colors.border }]}
+              style={({ pressed }) => [styles.tab, { backgroundColor: active ? color : colors.card, borderColor: active ? color : colors.border }, pressed && pressedStyle]}
             >
-              <Text style={[styles.tabText, { color: active ? '#040D14' : colors.text2 }]}>{t}</Text>
+              <Text style={[styles.tabText, { color: active ? colors.onFill : colors.text2 }]}>{t}</Text>
             </Pressable>
           );
         })}
@@ -96,7 +96,7 @@ export default function LessonsScreen() {
             <Pressable
               disabled={lesson.locked}
               onPress={() => router.push({ pathname: '/lesson/[id]', params: { id: String(lesson.id) } })}
-              style={[glassStyle, styles.lessonCard, { opacity: lesson.locked ? 0.68 : 1 }]}
+              style={({ pressed }) => [glassStyle, styles.lessonCard, { opacity: lesson.locked ? 0.68 : 1 }, pressed && pressedStyle]}
             >
               <View style={styles.lessonTop}>
                 <View style={{ flex: 1 }}>
@@ -117,7 +117,7 @@ export default function LessonsScreen() {
                 </View>
                 {!lesson.locked && (
                   <View style={[styles.statusCircle, { backgroundColor: `${color}18` }]}>
-                    <Text style={{ fontSize: 16 }}>{prog.completed ? '✅' : prog.progress > 0 ? '▶' : '▷'}</Text>
+                    <Text style={{ fontSize: 16, fontFamily: fonts.regular }}>{prog.completed ? '✅' : prog.progress > 0 ? '▶' : '▷'}</Text>
                   </View>
                 )}
               </View>
@@ -140,19 +140,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg2,
   },
   tab: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1 },
-  tabText: { fontSize: 12.5, fontWeight: '600' },
+  tabText: { fontSize: 12.5, fontFamily: fonts.semibold, fontWeight: '600' },
   errorWrap: { padding: spacing.md, paddingBottom: 0 },
   listContent: { padding: 14, gap: spacing.sm },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 9, marginTop: 4 },
   sectionBar: { width: 3, height: 14, borderRadius: 2 },
-  sectionTitle: { fontWeight: '700', fontSize: 13 },
+  sectionTitle: { fontWeight: '700', fontSize: 13, fontFamily: fonts.bold },
   lessonCard: { padding: 14, marginBottom: spacing.sm },
   lessonTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.sm },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 4 },
-  lessonTitle: { fontWeight: '700', fontSize: 13.5, flexShrink: 1 },
-  badge: { fontSize: 13 },
-  lessonDesc: { fontSize: 12, color: colors.text3, marginBottom: spacing.sm, lineHeight: 17 },
+  lessonTitle: { fontWeight: '700', fontSize: 13.5, fontFamily: fonts.bold, flexShrink: 1 },
+  badge: { fontSize: 13, fontFamily: fonts.regular },
+  lessonDesc: { fontSize: 12, fontFamily: fonts.regular, color: colors.text3, marginBottom: spacing.sm, lineHeight: 17 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm, flexWrap: 'wrap' },
-  metaText: { fontSize: 11, color: colors.text3 },
+  metaText: { fontSize: 11, fontFamily: fonts.regular, color: colors.text3 },
   statusCircle: { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
 });

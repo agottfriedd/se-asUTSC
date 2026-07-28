@@ -1,6 +1,7 @@
 import type { UserProfile } from '../types';
 import { BADGES_LIST } from '../data/lessons';
 import { StatCard } from '../components/UI';
+import { colors } from '../theme';
 
 interface Props {
   user: UserProfile;
@@ -14,9 +15,9 @@ export function ProfileView({ user, onLogout }: Props) {
       <div className="glass" style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 16, marginBottom: 22 }}>
         <div style={{
           width: 56, height: 56, borderRadius: '50%', flexShrink: 0,
-          background: 'linear-gradient(135deg,#0ED2B8,#9D7BF8)',
+          background: 'var(--brand-grad)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 20, fontWeight: 800, color: '#040D14',
+          fontSize: 20, fontWeight: 800, color: 'var(--on-pri)',
         }}>
           {user.initials}
         </div>
@@ -36,10 +37,10 @@ export function ProfileView({ user, onLogout }: Props) {
         display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))',
         gap: 10, marginBottom: 20,
       }}>
-        <StatCard icon="🔥" value={user.streak}      label="Días de racha"     color="#F5A623" />
-        <StatCard icon="📖" value={user.totalSigns}  label="Señas aprendidas"  color="#0ED2B8" />
-        <StatCard icon="🏆" value={user.badges}      label="Insignias"         color="#9D7BF8" />
-        <StatCard icon="📅" value={user.joined}      label="Miembro desde"     color="#22C97E" />
+        <StatCard icon="🔥" value={user.streak}      label="Días de racha"     color={colors.amber} />
+        <StatCard icon="📖" value={user.totalSigns}  label="Señas aprendidas"  color={colors.priInk} />
+        <StatCard icon="🏆" value={user.badges}      label="Insignias"         color={colors.navInk} />
+        <StatCard icon="📅" value={user.joined}      label="Miembro desde"     color={colors.green} />
       </div>
 
       {/* Badges */}
@@ -83,7 +84,7 @@ export function ProfileView({ user, onLogout }: Props) {
         onClick={onLogout}
         style={{
           width: '100%', padding: '11px', borderRadius: 10,
-          background: 'rgba(240,80,80,.1)', border: '1px solid rgba(240,80,80,.25)',
+          background: 'var(--red-d)', border: '1px solid var(--red-b)',
           color: 'var(--red)', fontWeight: 600, fontSize: 13.5,
           cursor: 'pointer', fontFamily: 'inherit', transition: '.2s',
         }}

@@ -301,7 +301,7 @@ export function LessonEditor({ lesson, nextOrder, onClose, onSaved }: Props) {
       </div>
 
       {error && (
-        <div style={{ fontSize: 12.5, color: 'var(--red)', background: 'var(--red-d)', border: '1px solid rgba(240,80,80,.3)', borderRadius: 8, padding: '9px 13px', marginBottom: 16 }}>
+        <div style={{ fontSize: 12.5, color: 'var(--red)', background: 'var(--red-d)', border: '1px solid var(--red-b)', borderRadius: 8, padding: '9px 13px', marginBottom: 16 }}>
           ⚠️ {error}
         </div>
       )}
@@ -312,7 +312,7 @@ export function LessonEditor({ lesson, nextOrder, onClose, onSaved }: Props) {
       </div>
 
       {loadingContent ? (
-        <div style={{ textAlign: 'center', padding: 24, color: 'var(--t3)' }}>Cargando bloques…</div>
+        <div style={{ textAlign: 'center', padding: 24, color: 'var(--t3)', animation: 'breathe 1.6s ease-in-out infinite' }}>Cargando bloques…</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {content.map((b, i) => {

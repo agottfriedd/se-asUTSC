@@ -1,4 +1,5 @@
 import type { HandConfig } from '../types';
+import { colors } from '../theme';
 
 interface Props {
   config: HandConfig;
@@ -10,7 +11,7 @@ interface Props {
  * Geometric hand illustration for LSM signs.
  * Renders fingers (4) + thumb as rounded rectangles with a subtle glow.
  */
-export function HandSVG({ config, color = '#0ED2B8', size = 64 }: Props) {
+export function HandSVG({ config, color = colors.priInk, size = 64 }: Props) {
   const H = size * 1.18;
 
   // Palm geometry

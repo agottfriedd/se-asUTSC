@@ -1,5 +1,5 @@
 import { ActivityIndicator, StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { colors, radius, spacing } from '../theme';
+import { colors, fonts, radius, spacing } from '../theme';
 
 // Portado de frontend/src/components/UI.tsx — mismos átomos, sin CSS.
 
@@ -55,7 +55,7 @@ export function StatCard({ icon, value, label, color }: StatCardProps) {
     <View style={[glassStyle, styles.statCard]}>
       <View style={styles.statHeader}>
         <View style={[styles.statIcon, { backgroundColor: `${color}18` }]}>
-          <Text style={{ fontSize: 17 }}>{icon}</Text>
+          <Text style={{ fontSize: 17, fontFamily: fonts.regular }}>{icon}</Text>
         </View>
         <Text style={styles.statLabel} numberOfLines={1}>{label}</Text>
       </View>
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   loadingLabel: {
-    fontSize: 13,
+    fontSize: 13, fontFamily: fonts.regular,
     color: colors.text3,
   },
   errorBanner: {
@@ -99,17 +99,17 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: colors.red,
-    fontSize: 12.5,
+    fontSize: 12.5, fontFamily: fonts.regular,
     lineHeight: 18,
   },
   track: {
-    backgroundColor: colors.border,
+    backgroundColor: colors.pbarTrack,
     overflow: 'hidden',
     width: '100%',
   },
   fill: {
     height: '100%',
-    backgroundColor: colors.teal,
+    backgroundColor: colors.pbarFill,
   },
   statCard: {
     padding: spacing.lg,
@@ -130,13 +130,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statLabel: {
-    fontSize: 11.5,
+    fontSize: 11.5, fontFamily: fonts.medium,
     color: colors.text3,
     fontWeight: '500',
     flexShrink: 1,
   },
   statValue: {
-    fontSize: 22,
+    fontSize: 22, fontFamily: fonts.extrabold,
     fontWeight: '800',
     color: colors.text1,
   },
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   tagText: {
-    fontSize: 11,
+    fontSize: 11, fontFamily: fonts.semibold,
     fontWeight: '600',
   },
 });

@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import type { SignFromAPI } from '../lib/api';
 import type { HandConfig } from '../types';
 import { HandSVG } from '../components/HandSVG';
+import { signAccent } from '../theme';
 
 const CATS = ['Todos','Abecedario','Saludos','Respuestas','Frases útiles','Especiales'] as const;
 
@@ -35,7 +36,7 @@ export function DictionaryView({ uid: _ }: Props) {
   if (loading) return (
     <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--t3)' }}>
       <div style={{ textAlign:'center' }}>
-        <div style={{ fontSize:32,marginBottom:10 }}>⏳</div>
+        <div style={{ fontSize:32,marginBottom:10,animation:'breathe 1.6s ease-in-out infinite' }}>⏳</div>
         <div>Cargando diccionario…</div>
       </div>
     </div>
@@ -52,7 +53,7 @@ export function DictionaryView({ uid: _ }: Props) {
         </div>
         <div style={{ display:'flex',gap:7,overflowX:'auto',paddingBottom:2 }}>
           {CATS.map(c => (
-            <button key={c} onClick={()=>setCat(c)} style={{ flexShrink:0,padding:'5px 13px',borderRadius:20,cursor:'pointer',fontSize:12,fontWeight:600,fontFamily:'inherit',transition:'.15s',background:cat===c?'var(--teal)':'var(--card)',color:cat===c?'#040D14':'var(--t2)',border:cat===c?'1px solid var(--teal)':'1px solid var(--bdr)' }}>
+            <button key={c} onClick={()=>setCat(c)} style={{ flexShrink:0,padding:'5px 13px',borderRadius:20,cursor:'pointer',fontSize:12,fontWeight:600,fontFamily:'inherit',transition:'.15s',background:cat===c?'var(--pri)':'var(--card)',color:cat===c?'var(--on-pri)':'var(--t2)',border:cat===c?'1px solid var(--pri-active)':'1px solid var(--bdr)' }}>
               {c}
             </button>
           ))}
@@ -71,8 +72,8 @@ export function DictionaryView({ uid: _ }: Props) {
         ) : (
           <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:11 }}>
             {filtered.map(s => (
-              <div key={s.id} className="sign-card" style={{ border:selected===s.id?`1.5px solid ${s.color}`:'1px solid var(--bdr)',boxShadow:selected===s.id?`0 0 0 3px ${s.color}18`:undefined }} onClick={()=>setSelected(p=>p===s.id?null:s.id)}>
-                <div style={{ padding:'14px 12px 8px',display:'flex',flexDirection:'column',alignItems:'center',gap:8,background:`${s.color}08` }}>
+              <div key={s.id} className="sign-card" style={{ border:selected===s.id?`1.5px solid ${signAccent(s.color)}`:'1px solid var(--bdr)',boxShadow:selected===s.id?`0 0 0 3px ${signAccent(s.color)}18`:undefined }} onClick={()=>setSelected(p=>p===s.id?null:s.id)}>
+                <div style={{ padding:'14px 12px 8px',display:'flex',flexDirection:'column',alignItems:'center',gap:8,background:`${signAccent(s.color)}08` }}>
                   {/* Solo el ABECEDARIO muestra su foto real (/signs/{letter}.png),
                       con fallback a texto si el archivo no existe (mismo patrón que
                       LessonDetailView). El resto de categorías NO muestra foto: su
@@ -85,23 +86,23 @@ export function DictionaryView({ uid: _ }: Props) {
                       // no-op; para Ñ hace que la URL coincida con el archivo real.
                       src={`/signs/${s.letter.normalize('NFD')}.png`}
                       alt={`Seña ${s.letter}`}
-                      style={{ width:56,height:66,objectFit:'contain',borderRadius:12,background:`${s.color}14` }}
+                      style={{ width:56,height:66,objectFit:'contain',borderRadius:12,background:`${signAccent(s.color)}14` }}
                       onError={() => setImgError(m => ({ ...m, [s.id]: true }))}
                     />
                   ) : s.category !== 'Abecedario' && s.handConfig ? (
-                    <HandSVG config={s.handConfig as HandConfig} color={s.color} size={56}/>
+                    <HandSVG config={s.handConfig as HandConfig} color={signAccent(s.color)} size={56}/>
                   ) : (
-                    <div style={{ width:56,height:66,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,fontWeight:900,color:s.color,background:`${s.color}14`,borderRadius:12 }}>{s.letter}</div>
+                    <div style={{ width:56,height:66,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,fontWeight:900,color:signAccent(s.color),background:`${signAccent(s.color)}14`,borderRadius:12 }}>{s.letter}</div>
                   )}
                 </div>
                 <div style={{ padding:'8px 10px 12px' }}>
                   <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4 }}>
-                    <div style={{ fontWeight:700,fontSize:15,color:s.color }}>{s.name}</div>
+                    <div style={{ fontWeight:700,fontSize:15,color:signAccent(s.color) }}>{s.name}</div>
                     <button onClick={e=>{e.stopPropagation();setLiked(l=>({...l,[s.id]:!l[s.id]}));}} style={{ background:'none',border:'none',cursor:'pointer',fontSize:14,padding:2 }}>
                       {liked[s.id]?'❤️':'🤍'}
                     </button>
                   </div>
-                  <span className="tag" style={{ background:`${s.color}18`,color:s.color,fontSize:10,marginBottom:5 }}>{s.category}</span>
+                  <span className="tag" style={{ background:`${signAccent(s.color)}18`,color:signAccent(s.color),fontSize:10,marginBottom:5 }}>{s.category}</span>
                   <div style={{ fontSize:11,color:'var(--t3)',lineHeight:1.45,marginTop:5 }}>{s.description}</div>
                   {s.tip && selected===s.id && <div style={{ fontSize:11,color:'var(--teal)',marginTop:6,padding:'5px 8px',background:'var(--teal-d)',borderRadius:6 }}>💡 {s.tip}</div>}
                 </div>

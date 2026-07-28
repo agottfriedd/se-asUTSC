@@ -1,9 +1,9 @@
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
-import { colors } from '../../src/theme';
+import { colors, fonts } from '../../src/theme';
 
 function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
-  return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.55 }}>{emoji}</Text>;
+  return <Text style={{ fontSize: 20, fontFamily: fonts.regular, opacity: focused ? 1 : 0.55 }}>{emoji}</Text>;
 }
 
 export default function TabsLayout() {
@@ -16,7 +16,11 @@ export default function TabsLayout() {
           backgroundColor: colors.bg2,
           borderTopColor:  colors.border,
         },
+        // Sin esto las etiquetas de tabs y los títulos de header se quedarían
+        // en la fuente del sistema mientras el resto de la app usa Poppins.
+        tabBarLabelStyle:  { fontFamily: fonts.medium },
         headerStyle: { backgroundColor: colors.bg2 },
+        headerTitleStyle: { fontFamily: fonts.bold },
         headerTintColor: colors.text1,
         headerShadowVisible: false,
       }}

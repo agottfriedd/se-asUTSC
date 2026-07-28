@@ -3,6 +3,7 @@ import { api, apiLevelToLabel } from '../lib/api';
 import type { LessonFromAPI } from '../lib/api';
 import type { UserProfile, AppView, Lesson, LessonProgress } from '../types';
 import { StatCard, PBar } from '../components/UI';
+import { colors } from '../theme';
 
 interface Props {
   user: UserProfile;
@@ -32,10 +33,10 @@ export function DashboardView({ user, nav, getForLesson, globalProgress }: Props
         <div style={{ fontSize:13,color:'var(--t3)' }}>🔥 Racha de {user.streak} días. ¡Sigue así!</div>
       </div>
       <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:10,marginBottom:18 }}>
-        <StatCard icon="🔥" value={`${user.streak}d`}        label="Racha actual"   color="#F5A623"/>
-        <StatCard icon="🎯" value={`${globalProgress}%`}     label="Progreso total" color="#0ED2B8"/>
-        <StatCard icon="✅" value={completedCount}            label="Completadas"    color="#22C97E"/>
-        <StatCard icon="🏆" value={user.badges}              label="Insignias"      color="#9D7BF8"/>
+        <StatCard icon="🔥" value={`${user.streak}d`}        label="Racha actual"   color={colors.amber}/>
+        <StatCard icon="🎯" value={`${globalProgress}%`}     label="Progreso total" color={colors.priInk}/>
+        <StatCard icon="✅" value={completedCount}            label="Completadas"    color={colors.green}/>
+        <StatCard icon="🏆" value={user.badges}              label="Insignias"      color={colors.navInk}/>
       </div>
       <div className="glass" style={{ padding:16,marginBottom:18 }}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:9 }}>

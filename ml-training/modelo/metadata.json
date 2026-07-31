@@ -1,8 +1,8 @@
 {
-  "creado": "2026-07-28T15:38:15",
-  "modelo": "SVM (RBF)",
+  "creado": "2026-07-28T16:57:02",
+  "modelo": "MLP",
   "representacion": "D · world + distancias",
-  "accuracy_cv": 0.9469,
+  "accuracy_cv": 0.9452,
   "particion": "StratifiedGroupKFold por sesion",
   "letras": [
     "A",
@@ -14,22 +14,26 @@
     "G",
     "H",
     "I",
+    "J",
     "K",
     "L",
     "M",
     "N",
     "O",
     "P",
+    "Q",
     "R",
     "S",
     "T",
     "U",
     "V",
     "W",
-    "Y"
+    "X",
+    "Y",
+    "Z"
   ],
-  "n_muestras": 13339,
-  "n_sesiones": 15,
+  "n_muestras": 14827,
+  "n_sesiones": 18,
   "sujetos": [
     "adrian"
   ],

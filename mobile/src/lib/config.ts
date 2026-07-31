@@ -3,7 +3,7 @@
  * (IP de tu máquina en la red WiFi) aquí — el teléfono y el equipo que
  * corre los servicios deben estar en la misma red.
  */
-const HOST = '192.168.1.7';
+const HOST = '172.20.10.2';
 
 /** ml-service (FastAPI + MediaPipe) — reconocimiento de señas. */
 export const ML_URL = `http://${HOST}:8000`;

@@ -55,7 +55,12 @@ def titulo(txt):
 # ══════════════════════════════════════════════════════ 1. CARGAR Y EXPLORAR
 titulo("1. CARGAR Y EXPLORAR")
 
-df = pd.read_csv("data/landmarks_raw.csv")
+df = pd.read_csv("data/landmarks_fusionado.csv")
+# La N-tilde comparte configuracion de mano con la N y solo se distingue por
+# movimiento. Un clasificador de poses no puede separarlas (recall 0.200,
+# confundida con N el 80% de las veces). Se excluye, igual que el par M/N
+# queda como limitacion conocida del enfoque estatico.
+df = df[df["label"] != "NT"]
 n_ses = df["sesion"].nunique()
 
 print(f"Muestras totales : {len(df)}")
